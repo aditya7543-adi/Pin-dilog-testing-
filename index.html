@@ -263,6 +263,16 @@
             border-top: 1px solid #e9ecef;
         }
 
+        .auto-close-message {
+            text-align: center;
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 1px solid #c3e6cb;
+        }
+
         @media (max-width: 480px) {
             .container {
                 border-radius: 15px;
@@ -309,6 +319,10 @@
                 <div class="status" id="statusMessage">
                     ⏳ Waiting for verification...
                 </div>
+            </div>
+
+            <div class="auto-close-message" id="autoCloseMessage" style="display: none;">
+                ✅ Verification complete! This tab will close automatically in <span id="closeCountdown">3</span> seconds...
             </div>
 
             <div class="timer" id="timer" style="display: none;">
@@ -367,6 +381,12 @@
         const timerElement = document.getElementById('timer');
         const countdownElement = document.getElementById('countdown');
         const successAnimation = document.getElementById('successAnimation');
+        const autoCloseMessage = document.getElementById('autoCloseMessage');
+        const closeCountdownElement = document.getElementById('closeCountdown');
+
+        // Track if verification was already processed
+        let isVerified = false;
+        let checkInterval;
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
@@ -374,8 +394,24 @@
                 deviceIdElement.textContent = deviceId;
                 verificationIdElement.textContent = verificationId.substring(0, 20) + '...';
                 
-                // Check if already verified
+                // Auto-check verification status on page load
                 checkVerificationStatus();
+                
+                // Start auto-check interval
+                checkInterval = setInterval(() => {
+                    if (!isVerified) {
+                        checkVerificationStatus();
+                    } else {
+                        clearInterval(checkInterval);
+                    }
+                }, 2000);
+                
+                // Auto-verify after 2 seconds if not already verified
+                setTimeout(() => {
+                    if (!isVerified) {
+                        verifyDevice();
+                    }
+                }, 2000);
             } else {
                 showError('Missing required parameters. Please use the verification link from the app.');
             }
@@ -383,13 +419,15 @@
 
         // Check verification status
         async function checkVerificationStatus() {
+            if (isVerified) return;
+            
             try {
                 const deviceRef = database.ref('devices/' + deviceId);
                 const snapshot = await deviceRef.once('value');
                 
                 if (snapshot.exists()) {
                     const deviceData = snapshot.val();
-                    if (deviceData.verified) {
+                    if (deviceData.verified && !isVerified) {
                         showVerifiedState();
                     }
                 }
@@ -400,6 +438,8 @@
 
         // Verify device function
         async function verifyDevice() {
+            if (isVerified) return;
+            
             if (!deviceId || !verificationId) {
                 showError('Invalid verification request');
                 return;
@@ -423,7 +463,8 @@
                 const uidData = uidSnapshot.val();
                 
                 if (uidData.used) {
-                    showError('This verification link has already been used. Please generate a new one.');
+                    // If already used, check if device is verified
+                    await checkVerificationStatus();
                     resetButton();
                     return;
                 }
@@ -442,20 +483,29 @@
                     return;
                 }
 
-                // Mark UID as used
+                // Mark UID as used IMMEDIATELY
                 await uidRef.update({
                     used: true,
                     used_at: currentTime
                 });
 
-                // Update device verification status
+                // Update device verification status IMMEDIATELY
                 const deviceRef = database.ref('devices/' + deviceId);
                 await deviceRef.set({
                     verified: true,
                     verification_time: currentTime,
                     last_verified: currentTime,
-                    verification_id: verificationId
+                    verification_id: verificationId,
+                    verified_at: currentTime
                 });
+
+                // Set verified flag
+                isVerified = true;
+
+                // Stop checking interval
+                if (checkInterval) {
+                    clearInterval(checkInterval);
+                }
 
                 // Show success
                 showVerifiedState();
@@ -469,6 +519,7 @@
 
         // Show verified state
         function showVerifiedState() {
+            isVerified = true;
             statusMessageElement.textContent = '✅ Device verified successfully!';
             statusMessageElement.className = 'status verified';
             verificationStatusElement.textContent = 'Verified';
@@ -477,14 +528,30 @@
             verifyBtn.style.display = 'none';
             successAnimation.style.display = 'block';
             timerElement.style.display = 'block';
+            autoCloseMessage.style.display = 'block';
             
             // Start countdown timer
             startCountdown(2 * 60); // 2 minutes
             
-            // Update status message after a delay
-            setTimeout(() => {
-                statusMessageElement.textContent = '✅ Verification complete! Return to the app.';
-            }, 2000);
+            // Start auto-close countdown
+            startAutoCloseCountdown();
+        }
+
+        // Start auto-close countdown
+        function startAutoCloseCountdown() {
+            let countdown = 3;
+            const countdownInterval = setInterval(() => {
+                closeCountdownElement.textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    window.close();
+                    // If window.close doesn't work, show final message
+                    setTimeout(() => {
+                        autoCloseMessage.innerHTML = '✅ Verification complete! You can safely close this tab and return to the app.';
+                    }, 1000);
+                }
+                countdown--;
+            }, 1000);
         }
 
         // Show error state
@@ -497,8 +564,10 @@
 
         // Reset button state
         function resetButton() {
-            verifyBtn.disabled = false;
-            btnText.textContent = '✅ Verify This Device';
+            if (!isVerified) {
+                verifyBtn.disabled = false;
+                btnText.textContent = '✅ Verify This Device';
+            }
         }
 
         // Countdown timer
@@ -520,27 +589,6 @@
                 }
             }, 1000);
         }
-
-        // Auto-check for verification status every 5 seconds
-        setInterval(checkVerificationStatus, 5000);
-
-        // Add some interactive effects
-        document.addEventListener('mousemove', function(e) {
-            const container = document.querySelector('.container');
-            const xAxis = (window.innerWidth / 2 - e.pageX) / 25;
-            const yAxis = (window.innerHeight / 2 - e.pageY) / 25;
-            container.style.transform = `rotateY(${xAxis}deg) rotateX(${yAxis}deg)`;
-        });
-
-        // Reset transform when mouse leaves
-        document.querySelector('.container').addEventListener('mouseleave', function() {
-            this.style.transform = 'rotateY(0deg) rotateX(0deg)';
-            this.style.transition = 'transform 0.5s ease';
-        });
-
-        document.querySelector('.container').addEventListener('mouseenter', function() {
-            this.style.transition = 'none';
-        });
     </script>
 </body>
 </html>
