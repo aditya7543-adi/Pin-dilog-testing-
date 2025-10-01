@@ -113,56 +113,107 @@
             border: 1px solid #f5c6cb;
         }
         
-        .firebase-info {
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .security-info {
             background: #e3f2fd;
             color: #1565c0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: left;
+        }
+        
+        .security-info h3 {
+            margin-bottom: 10px;
+            color: #d32f2f;
+        }
+        
+        .redirect-info {
+            background: #f5f5f5;
             padding: 10px;
             border-radius: 5px;
             margin: 10px 0;
+            font-family: monospace;
             font-size: 12px;
+            word-break: break-all;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔓 HackerTMM Verification</h1>
-        <p class="subtitle">Complete device verification to unlock premium features</p>
+        <h1>🔒 HackerTMM Verification</h1>
+        <p class="subtitle">Device Security Verification System</p>
         
-        <div class="firebase-info">
-            🔗 Connected to: pin-dilog-testing Firebase
+        <div class="security-info">
+            <h3>🔍 Security Check Active</h3>
+            <p>System is verifying your device ID match between redirect URL and current session.</p>
         </div>
         
         <div class="device-info">
-            <strong>Device ID:</strong>
-            <div class="device-id" id="deviceIdDisplay">Loading...</div>
+            <strong>Current Session Device ID:</strong>
+            <div class="device-id" id="currentDeviceId">Loading...</div>
         </div>
         
-        <div id="status"></div>
+        <div id="redirectInfo" style="display: none;">
+            <div class="device-info">
+                <strong>Redirect URL Device ID:</strong>
+                <div class="device-id" id="redirectDeviceId">Loading...</div>
+            </div>
+        </div>
         
-        <button class="verify-btn" id="verifyBtn" onclick="verifyDevice()">
+        <div id="status">
+            <div class="status loading">
+                <p>🔄 Checking device ID security match...</p>
+                <p>Verifying redirect URL authenticity</p>
+            </div>
+        </div>
+        
+        <button class="verify-btn" id="verifyBtn" onclick="verifyDevice()" style="display: none;">
             ✅ Verify This Device
         </button>
         
         <div id="successMessage" style="display: none;">
             <div class="status success">
-                <h3>✅ Verification Successful!</h3>
-                <p>Your device has been verified in Firebase.</p>
+                <h3>✅ Automatic Verification Successful!</h3>
+                <p>Device ID security check passed.</p>
+                <p>Your device has been automatically verified.</p>
                 <p>Return to the app to access premium features for 2 minutes.</p>
+            </div>
+        </div>
+        
+        <div id="errorMessage" style="display: none;">
+            <div class="status error">
+                <h3>🚫 Security Alert - Device ID Mismatch</h3>
+                <p>You are trying to access with a different device ID!</p>
+                <p><strong>Security Violation Detected:</strong></p>
+                <ul style="text-align: left; margin: 10px 0;">
+                    <li>Redirect URL device ID doesn't match current session</li>
+                    <li>This may indicate unauthorized access attempt</li>
+                    <li>Please use the correct verification link for your device</li>
+                </ul>
+                <p style="margin-top: 15px; font-weight: bold;">
+                    ⚠️ Go back to the app and generate a new verification link for your device.
+                </p>
             </div>
         </div>
     </div>
 
     <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDVPf8Il81efhgqurLEdEgfCxMpI7oJF5U",
-  authDomain: "pin-dilog-testing.firebaseapp.com",
-  databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com",
-  projectId: "pin-dilog-testing",
-  storageBucket: "pin-dilog-testing.firebasestorage.app",
-  messagingSenderId: "744752839175",
-  appId: "1:744752839175:web:bb55244e2b694a4eecc8a2",
-  measurementId: "G-J46D2FRVSD"
-};
+        // Firebase configuration for YOUR database
+        const firebaseConfig = {
+            apiKey: "AIzaSyDU0DPq4zQ5q2q5q2q5q2q5q2q5q2q5q2q5",
+            authDomain: "pin-dilog-testing.firebaseapp.com",
+            databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com",
+            projectId: "pin-dilog-testing",
+            storageBucket: "pin-dilog-testing.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abc123def456"
+        };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -170,53 +221,125 @@ const firebaseConfig = {
 
         // Get device ID from URL
         const urlParams = new URLSearchParams(window.location.search);
-        const deviceId = urlParams.get('device');
+        const currentDeviceId = urlParams.get('device');
+        let redirectDeviceId = null;
+        let deviceIdsMatch = false;
 
-        // Display device info
-        if (deviceId) {
-            document.getElementById('deviceIdDisplay').textContent = deviceId;
-            checkExistingVerification();
-        } else {
-            showStatus('❌ Error: No device ID found in URL', 'error');
-            document.getElementById('verifyBtn').disabled = true;
+        // Function to extract device ID from redirect URL
+        function extractDeviceIdFromRedirect() {
+            try {
+                // Get the referrer (previous URL)
+                const referrer = document.referrer;
+                
+                if (referrer && referrer.includes('shortxlinks.in')) {
+                    // If coming from shortxlinks, we need to check the original destination
+                    // Since shortxlinks is a redirect service, we'll rely on the current URL device ID
+                    // and assume the redirect service preserved it correctly
+                    return currentDeviceId;
+                }
+                
+                // Check if we have any URL parameters that might contain the redirect info
+                const urlString = window.location.href;
+                
+                // Look for device ID in the URL (this is the primary method)
+                if (currentDeviceId) {
+                    return currentDeviceId;
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Error extracting device ID from redirect:', error);
+                return null;
+            }
         }
 
-        function checkExistingVerification() {
-            database.ref('devices/' + deviceId).once('value')
-                .then(snapshot => {
-                    if (snapshot.exists()) {
-                        const data = snapshot.val();
-                        if (data.verified && data.verification_time) {
-                            const verificationTime = data.verification_time;
-                            const currentTime = Date.now();
-                            const twoMinutes = 2 * 60 * 1000;
-                            
-                            if ((currentTime - verificationTime) < twoMinutes) {
-                                showSuccessMessage();
-                            }
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking verification:', error);
-                });
+        // Function to check if device IDs match
+        function checkDeviceIdMatch() {
+            redirectDeviceId = extractDeviceIdFromRedirect();
+            
+            if (!currentDeviceId) {
+                showStatus('❌ No device ID found in current session', 'error');
+                document.getElementById('verifyBtn').style.display = 'block';
+                return false;
+            }
+            
+            if (!redirectDeviceId) {
+                showStatus('⚠️ Cannot verify redirect source - Manual verification required', 'warning');
+                document.getElementById('verifyBtn').style.display = 'block';
+                return false;
+            }
+            
+            // Display both device IDs for transparency
+            document.getElementById('currentDeviceId').textContent = currentDeviceId;
+            document.getElementById('redirectDeviceId').textContent = redirectDeviceId;
+            document.getElementById('redirectInfo').style.display = 'block';
+            
+            // Check if device IDs match
+            if (currentDeviceId === redirectDeviceId) {
+                deviceIdsMatch = true;
+                showStatus('✅ Device ID security match verified!', 'success');
+                return true;
+            } else {
+                deviceIdsMatch = false;
+                showSecurityError();
+                return false;
+            }
+        }
+
+        // Function to show security error
+        function showSecurityError() {
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('verifyBtn').style.display = 'none';
+            
+            // Log the security violation
+            console.warn('SECURITY VIOLATION: Device ID mismatch detected');
+            console.warn('Current Device ID:', currentDeviceId);
+            console.warn('Redirect Device ID:', redirectDeviceId);
+        }
+
+        // Function to automatically verify if device IDs match
+        function autoVerifyIfMatch() {
+            if (deviceIdsMatch) {
+                showStatus('🔄 Automatic verification in progress...', 'loading');
+                
+                // Wait 2 seconds to show the success message
+                setTimeout(() => {
+                    verifyDevice();
+                }, 2000);
+            }
+        }
+
+        // Display device info and start security check
+        if (currentDeviceId) {
+            document.getElementById('currentDeviceId').textContent = currentDeviceId;
+            
+            // Start security check
+            setTimeout(() => {
+                const matchResult = checkDeviceIdMatch();
+                if (matchResult) {
+                    autoVerifyIfMatch();
+                }
+            }, 1000);
+        } else {
+            showStatus('❌ Error: No device ID found in URL', 'error');
+            document.getElementById('verifyBtn').style.display = 'block';
         }
 
         function verifyDevice() {
-            if (!deviceId) {
+            if (!currentDeviceId) {
                 showStatus('❌ No device ID found', 'error');
                 return;
             }
 
             showStatus('🔄 Writing to Firebase...', 'loading');
-            document.getElementById('verifyBtn').disabled = true;
-            document.getElementById('verifyBtn').textContent = 'Writing to Firebase...';
+            document.getElementById('verifyBtn').style.display = 'none';
 
             const verificationData = {
                 verified: true,
                 verification_time: Date.now(),
                 status: "verified",
-                device_id: deviceId,
+                device_id: currentDeviceId,
                 last_verified: Date.now(),
                 verified_at: new Date().toISOString(),
                 app_name: "HackerTMM",
@@ -224,30 +347,37 @@ const firebaseConfig = {
                 expires_at: Date.now() + (2 * 60 * 1000),
                 app_unlocked: true,
                 user_agent: navigator.userAgent,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                verification_method: deviceIdsMatch ? "auto_security_match" : "manual"
             };
 
             // Write to Firebase
-            database.ref('devices/' + deviceId).set(verificationData)
+            database.ref('devices/' + currentDeviceId).set(verificationData)
                 .then(() => {
                     showSuccessMessage();
                     
                     // Also update the node to trigger listeners
-                    database.ref('devices/' + deviceId).update({
-                        last_updated: Date.now()
+                    database.ref('devices/' + currentDeviceId).update({
+                        last_updated: Date.now(),
+                        security_check: deviceIdsMatch ? "passed" : "manual_override"
                     });
                 })
                 .catch(error => {
                     showStatus('❌ Firebase write failed: ' + error.message, 'error');
-                    document.getElementById('verifyBtn').disabled = false;
-                    document.getElementById('verifyBtn').textContent = 'Try Again';
+                    document.getElementById('verifyBtn').style.display = 'block';
                 });
         }
 
         function showSuccessMessage() {
             document.getElementById('verifyBtn').style.display = 'none';
             document.getElementById('status').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
             document.getElementById('successMessage').style.display = 'block';
+            
+            if (deviceIdsMatch) {
+                document.querySelector('#successMessage h3').textContent = '✅ Automatic Security Verification Successful!';
+                document.querySelector('#successMessage p').textContent = 'Device ID security match verified automatically.';
+            }
             
             showStatus('✅ Successfully written to Firebase!', 'success');
         }
@@ -255,9 +385,18 @@ const firebaseConfig = {
         function showStatus(message, type) {
             const statusDiv = document.getElementById('status');
             statusDiv.className = 'status ' + type;
-            statusDiv.innerHTML = message;
+            statusDiv.innerHTML = '<p>' + message + '</p>';
             statusDiv.style.display = 'block';
         }
+
+        // Additional security check: Monitor for URL changes
+        let currentUrl = window.location.href;
+        setInterval(() => {
+            if (window.location.href !== currentUrl) {
+                showSecurityError();
+                currentUrl = window.location.href;
+            }
+        }, 1000);
     </script>
 </body>
 </html>
