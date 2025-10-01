@@ -261,6 +261,16 @@
             border: 1px solid #c3e6cb;
         }
 
+        .auto-verify-message {
+            text-align: center;
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 1px solid #ffeaa7;
+        }
+
         @media (max-width: 480px) {
             .container {
                 border-radius: 15px;
@@ -305,8 +315,12 @@
 
             <div class="status-container">
                 <div class="status" id="statusMessage">
-                    ⏳ Waiting for verification...
+                    ⏳ Auto-verification starting...
                 </div>
+            </div>
+
+            <div class="auto-verify-message" id="autoVerifyMessage">
+                🔄 Automatic verification in progress. Please wait...
             </div>
 
             <div class="auto-close-message" id="autoCloseMessage" style="display: none;">
@@ -324,14 +338,14 @@
                 </svg>
             </div>
 
-            <button class="verify-btn" id="verifyBtn" onclick="verifyDevice()">
+            <button class="verify-btn" id="verifyBtn" onclick="verifyDevice()" style="display: none;">
                 <span id="btnText">✅ Verify This Device</span>
             </button>
 
             <div class="instructions">
                 <h3>📋 How to Verify</h3>
                 <ol>
-                    <li>Click the "Verify This Device" button above</li>
+                    <li>Verification starts automatically when you open this page</li>
                     <li>Wait for the verification process to complete</li>
                     <li>Your device will be granted 2 minutes of access</li>
                     <li>Return to the app to continue using premium features</li>
@@ -366,10 +380,13 @@
         const statusMessageElement = document.getElementById('statusMessage');
         const verifyBtn = document.getElementById('verifyBtn');
         const btnText = document.getElementById('btnText');
+        const autoVerifyMessage = document.getElementById('autoVerifyMessage');
 
         // Track if verification was already processed
         let isVerified = false;
         let checkInterval;
+        let retryCount = 0;
+        const maxRetries = 5;
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
@@ -377,153 +394,213 @@
                 deviceIdElement.textContent = deviceId;
                 verificationIdElement.textContent = verificationId.substring(0, 20) + '...';
                 
-                console.log("Device ID:", deviceId);
-                console.log("Verification ID:", verificationId);
+                console.log("🔍 Starting auto-verification...");
+                console.log("📱 Device ID:", deviceId);
+                console.log("🔑 Verification ID:", verificationId);
                 
-                // Auto-check verification status on page load
-                checkVerificationStatus();
-                
-                // Start auto-check interval
-                checkInterval = setInterval(() => {
-                    if (!isVerified) {
-                        checkVerificationStatus();
-                    } else {
-                        clearInterval(checkInterval);
-                    }
-                }, 2000);
+                // Start auto-verification immediately
+                startAutoVerification();
                 
             } else {
-                showError('Missing required parameters. Please use the verification link from the app.');
+                showError('❌ Missing required parameters. Please use the verification link from the app.');
+                showManualButton();
             }
         });
 
+        // Start auto-verification process
+        async function startAutoVerification() {
+            console.log("🔄 Starting automatic verification process...");
+            
+            // First, check if device is already verified
+            const alreadyVerified = await checkVerificationStatus();
+            if (alreadyVerified) {
+                console.log("✅ Device already verified");
+                return;
+            }
+            
+            // Start the verification process
+            await verifyDevice();
+        }
+
         // Check verification status
         async function checkVerificationStatus() {
-            if (isVerified) return;
-            
             try {
-                console.log("Checking verification status for device:", deviceId);
+                console.log("🔍 Checking verification status for device:", deviceId);
                 
                 const deviceRef = database.ref('devices/' + deviceId);
                 const snapshot = await deviceRef.once('value');
                 
                 if (snapshot.exists()) {
                     const deviceData = snapshot.val();
-                    console.log("Device data found:", deviceData);
+                    console.log("📄 Device data found:", deviceData);
                     
                     if (deviceData.verified && !isVerified) {
+                        console.log("✅ Device is already verified");
                         showVerifiedState();
+                        return true;
                     }
                 } else {
-                    console.log("No device data found in Firebase");
+                    console.log("📝 No device data found in Firebase");
                 }
             } catch (error) {
-                console.error('Error checking verification status:', error);
+                console.error('❌ Error checking verification status:', error);
             }
+            return false;
         }
 
-        // Verify device function
+        // Verify device function - AUTO TRIGGERED
         async function verifyDevice() {
             if (isVerified) return;
             
             if (!deviceId || !verificationId) {
-                showError('Invalid verification request');
+                showError('❌ Invalid verification request');
+                showManualButton();
                 return;
             }
 
-            // Disable button and show loading
-            verifyBtn.disabled = true;
-            btnText.innerHTML = '<div class="loading"></div> Verifying...';
+            // Update status
+            statusMessageElement.textContent = '🔄 Searching for verification data...';
+            autoVerifyMessage.innerHTML = '<div class="loading"></div> Searching for verification data in Firebase...';
 
             try {
-                console.log("Starting verification process...");
-                console.log("Checking UID:", verificationId);
+                console.log("🔄 Starting verification process...");
+                console.log("🔑 Checking UID:", verificationId);
 
-                // First check if the encrypted UID exists in Firebase
-                const uidRef = database.ref('encrypted_uids/' + verificationId);
-                const uidSnapshot = await uidRef.once('value');
+                // Clean the verification ID for Firebase lookup
+                const cleanVerificationId = verificationId.replaceAll(/[^a-zA-Z0-9]/g, "_");
+                console.log("🧹 Cleaned UID for Firebase:", cleanVerificationId);
 
-                if (!uidSnapshot.exists()) {
-                    console.log("UID not found in Firebase:", verificationId);
+                let uidData = null;
+                let uidFound = false;
+
+                // Try multiple Firebase paths to find the UID
+                const pathsToCheck = [
+                    `encrypted_uids/${cleanVerificationId}`,
+                    `encrypted_uids/${verificationId}`,
+                    `backup_uids/${cleanVerificationId}`,
+                    `verification_uids/${deviceId}`
+                ];
+
+                for (const path of pathsToCheck) {
+                    console.log(`🔍 Checking path: ${path}`);
+                    const ref = database.ref(path);
+                    const snapshot = await ref.once('value');
                     
-                    // Try alternative path - sometimes Firebase adds quotes
-                    const uidRefAlt = database.ref('encrypted_uids').orderByKey().equalTo(verificationId);
-                    const uidSnapshotAlt = await uidRefAlt.once('value');
-                    
-                    if (!uidSnapshotAlt.exists()) {
-                        showError('Invalid verification ID. Please generate a new link from the app.');
-                        resetButton();
-                        return;
-                    } else {
-                        console.log("UID found using alternative method");
+                    if (snapshot.exists()) {
+                        uidData = snapshot.val();
+                        console.log(`✅ Found UID data in path: ${path}`, uidData);
+                        uidFound = true;
+                        
+                        // Handle different data structures
+                        if (path === 'verification_uids/' + deviceId) {
+                            // This path stores data by device ID, extract the UID info
+                            if (uidData.encrypted_uid === verificationId || uidData.encrypted_uid === cleanVerificationId) {
+                                console.log("✅ UID matches in device-based storage");
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
                     }
                 }
 
-                const uidData = uidSnapshot.val();
-                console.log("UID data:", uidData);
-                
-                // Handle case where uidData might be null
-                if (!uidData) {
-                    showError('Verification data corrupted. Please generate a new link.');
-                    resetButton();
-                    return;
-                }
-                
-                if (uidData.used) {
-                    // If already used, check if device is verified
-                    console.log("UID already used, checking device status");
-                    await checkVerificationStatus();
-                    resetButton();
-                    return;
+                if (!uidFound) {
+                    retryCount++;
+                    if (retryCount <= maxRetries) {
+                        console.log(`🔄 UID not found. Retrying... (${retryCount}/${maxRetries})`);
+                        statusMessageElement.textContent = `🔄 Searching for verification data... (Attempt ${retryCount}/${maxRetries})`;
+                        
+                        // Wait 2 seconds and retry
+                        setTimeout(verifyDevice, 2000);
+                        return;
+                    } else {
+                        showError('❌ Verification data not found in Firebase. Please generate a new link from the app.');
+                        showManualButton();
+                        return;
+                    }
                 }
 
-                if (uidData.device_id !== deviceId) {
-                    showError('Device ID mismatch. Please use the correct verification link.');
-                    resetButton();
+                // Handle case where uidData might be null
+                if (!uidData) {
+                    showError('❌ Verification data corrupted. Please generate a new link.');
+                    showManualButton();
+                    return;
+                }
+                
+                // Extract actual UID data from backup structure if needed
+                if (uidData.original_uid) {
+                    console.log("📦 Using backup UID data");
+                    uidData = uidData;
+                }
+
+                if (uidData.used) {
+                    // If already used, check if device is verified
+                    console.log("⚠️ UID already used, checking device status");
+                    const alreadyVerified = await checkVerificationStatus();
+                    if (alreadyVerified) {
+                        return;
+                    } else {
+                        showError('❌ This verification link has already been used. Please generate a new one.');
+                        showManualButton();
+                        return;
+                    }
+                }
+
+                if (uidData.device_id && uidData.device_id !== deviceId) {
+                    showError('❌ Device ID mismatch. Please use the correct verification link.');
+                    showManualButton();
                     return;
                 }
 
                 // Check if UID is expired
                 const currentTime = Date.now();
                 if (uidData.expires_at && currentTime > uidData.expires_at) {
-                    showError('Verification link has expired. Please generate a new one.');
-                    resetButton();
+                    showError('❌ Verification link has expired. Please generate a new one.');
+                    showManualButton();
                     return;
                 }
 
+                // Update status
+                statusMessageElement.textContent = '✅ Verification data found! Updating Firebase...';
+                autoVerifyMessage.innerHTML = '<div class="loading"></div> Updating verification status in Firebase...';
+
                 // Mark UID as used IMMEDIATELY
-                console.log("Marking UID as used");
+                console.log("📝 Marking UID as used");
+                const cleanUid = cleanVerificationId;
+                const uidRef = database.ref('encrypted_uids/' + cleanUid);
                 await uidRef.update({
                     used: true,
-                    used_at: currentTime
+                    used_at: currentTime,
+                    status: 'completed'
                 });
 
                 // Update device verification status IMMEDIATELY
-                console.log("Updating device verification status");
+                console.log("📱 Updating device verification status");
                 const deviceRef = database.ref('devices/' + deviceId);
                 await deviceRef.set({
                     verified: true,
                     verification_time: currentTime,
                     last_verified: currentTime,
                     verification_id: verificationId,
-                    verified_at: currentTime
+                    verified_at: currentTime,
+                    status: 'active'
                 });
 
                 // Set verified flag
                 isVerified = true;
 
-                // Stop checking interval
+                // Stop checking interval if it exists
                 if (checkInterval) {
                     clearInterval(checkInterval);
                 }
 
-                // Show success
+                console.log("✅ Verification completed successfully!");
                 showVerifiedState();
 
             } catch (error) {
-                console.error('Verification error:', error);
-                showError('Verification failed: ' + error.message + '. Please try again.');
-                resetButton();
+                console.error('❌ Verification error:', error);
+                showError('❌ Verification failed: ' + error.message + '. Please try again.');
+                showManualButton();
             }
         }
 
@@ -535,6 +612,7 @@
             verificationStatusElement.textContent = 'Verified';
             verificationStatusElement.style.color = '#155724';
             
+            autoVerifyMessage.style.display = 'none';
             verifyBtn.style.display = 'none';
             document.getElementById('successAnimation').style.display = 'block';
             document.getElementById('timer').style.display = 'block';
@@ -557,7 +635,7 @@
                     try {
                         window.close();
                     } catch (e) {
-                        console.log("Could not close window automatically");
+                        console.log("⚠️ Could not close window automatically");
                     }
                     // Show final message
                     document.getElementById('autoCloseMessage').innerHTML = '✅ Verification complete! You can safely close this tab and return to the app.';
@@ -568,18 +646,17 @@
 
         // Show error state
         function showError(message) {
-            statusMessageElement.textContent = '❌ ' + message;
+            statusMessageElement.textContent = message;
             statusMessageElement.className = 'status error';
             verificationStatusElement.textContent = 'Failed';
             verificationStatusElement.style.color = '#721c24';
+            autoVerifyMessage.style.display = 'none';
         }
 
-        // Reset button state
-        function resetButton() {
-            if (!isVerified) {
-                verifyBtn.disabled = false;
-                btnText.textContent = '✅ Verify This Device';
-            }
+        // Show manual button when auto-verification fails
+        function showManualButton() {
+            verifyBtn.style.display = 'block';
+            autoVerifyMessage.innerHTML = '⚠️ Automatic verification failed. Please click the button below to try manually.';
         }
 
         // Countdown timer
