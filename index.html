@@ -30,18 +30,6 @@
             overflow: hidden;
             max-width: 500px;
             width: 100%;
-            animation: slideUp 0.6s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .header {
@@ -404,14 +392,14 @@
                     } else {
                         clearInterval(checkInterval);
                     }
-                }, 2000);
+                }, 1500);
                 
-                // Auto-verify after 2 seconds if not already verified
+                // Auto-verify after 1 second if not already verified
                 setTimeout(() => {
                     if (!isVerified) {
                         verifyDevice();
                     }
-                }, 2000);
+                }, 1000);
             } else {
                 showError('Missing required parameters. Please use the verification link from the app.');
             }
