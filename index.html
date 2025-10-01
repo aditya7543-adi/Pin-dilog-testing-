@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HackerTMM - Device Verification</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding: 50px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Device Verification</h1>
+        <div id="status">Click the button below to verify your device</div>
+        <button onclick="verifyDevice()">Verify This Device</button>
+        <div id="deviceInfo"></div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+  apiKey: "AIzaSyDVPf8Il81efhgqurLEdEgfCxMpI7oJF5U",
+  authDomain: "pin-dilog-testing.firebaseapp.com",
+  databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com",
+  projectId: "pin-dilog-testing",
+  storageBucket: "pin-dilog-testing.firebasestorage.app",
+  messagingSenderId: "744752839175",
+  appId: "1:744752839175:web:bb55244e2b694a4eecc8a2",
+  measurementId: "G-J46D2FRVSD"
+};
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Get device ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = urlParams.get('device');
+
+        // Display device info
+        if (deviceId) {
+            document.getElementById('deviceInfo').innerHTML = 
+                `<p><strong>Device ID:</strong> ${deviceId}</p>`;
+            
+            // Check if already verified
+            checkExistingVerification();
+        } else {
+            document.getElementById('status').innerHTML = 
+                '<span style="color: red;">Error: No device ID found in URL</span>';
+        }
+
+        function checkExistingVerification() {
+            database.ref('devices/' + deviceId).once('value')
+                .then(snapshot => {
+                    if (snapshot.exists() && snapshot.val().verified) {
+                        document.getElementById('status').innerHTML = 
+                            '<span style="color: green;">✅ This device is already verified!</span>';
+                    }
+                });
+        }
+
+        function verifyDevice() {
+            if (!deviceId) {
+                alert('No device ID found');
+                return;
+            }
+
+            document.getElementById('status').innerHTML = 
+                '<span style="color: orange;">⏳ Verifying device...</span>';
+
+            const verificationData = {
+                verified: true,
+                verification_time: Date.now(),
+                status: "verified",
+                device_id: deviceId,
+                last_verified: Date.now(),
+                verified_at: new Date().toISOString()
+            };
+
+            database.ref('devices/' + deviceId).update(verificationData)
+                .then(() => {
+                    document.getElementById('status').innerHTML = 
+                        '<span style="color: green;">✅ Device verified successfully! You can close this window and return to the app.</span>';
+                    
+                    // Optional: Redirect or show success message
+                    setTimeout(() => {
+                        document.body.innerHTML = 
+                            '<div class="container"><h1>✅ Verification Complete</h1><p>Your device has been verified successfully for 24 hours.</p><p>You can now close this window and return to the application.</p></div>';
+                    }, 2000);
+                })
+                .catch(error => {
+                    document.getElementById('status').innerHTML = 
+                        `<span style="color: red;">❌ Verification failed: ${error.message}</span>`;
+                });
+        }
+    </script>
+</body>
+</html>
