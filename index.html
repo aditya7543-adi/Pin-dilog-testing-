@@ -119,6 +119,12 @@
             border: 1px solid #ffeaa7;
         }
         
+        .info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #bbdefb;
+        }
+        
         .security-info {
             background: #e3f2fd;
             color: #1565c0;
@@ -141,6 +147,16 @@
             font-family: monospace;
             font-size: 12px;
             word-break: break-all;
+        }
+        
+        .reload-warning {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 12px;
+            border-left: 4px solid #f44336;
         }
     </style>
 </head>
@@ -166,6 +182,10 @@
             </div>
         </div>
         
+        <div id="reloadWarning" class="reload-warning" style="display: none;">
+            ⚠️ <strong>Page Reload Detected</strong> - Verification already completed. Return to app.
+        </div>
+        
         <div id="status">
             <div class="status loading">
                 <p>🔄 Checking device ID security match...</p>
@@ -183,6 +203,14 @@
                 <p>Device ID security check passed.</p>
                 <p>Your device has been automatically verified.</p>
                 <p>Return to the app to access premium features for 2 minutes.</p>
+            </div>
+        </div>
+        
+        <div id="alreadyVerified" style="display: none;">
+            <div class="status info">
+                <h3>✅ Already Verified</h3>
+                <p>Your device has already been verified in this session.</p>
+                <p>Return to the app to continue using premium features.</p>
             </div>
         </div>
         
@@ -224,6 +252,29 @@
         const currentDeviceId = urlParams.get('device');
         let redirectDeviceId = null;
         let deviceIdsMatch = false;
+        let isAlreadyVerified = false;
+        let hasWrittenToFirebase = false;
+
+        // Check if this is a page reload and verification was already done
+        function checkIfAlreadyVerified() {
+            const verificationKey = `verified_${currentDeviceId}`;
+            const sessionVerified = sessionStorage.getItem(verificationKey);
+            const localVerified = localStorage.getItem(verificationKey);
+            
+            if (sessionVerified === 'true' || localVerified === 'true') {
+                isAlreadyVerified = true;
+                return true;
+            }
+            return false;
+        }
+
+        // Mark as verified in storage
+        function markAsVerified() {
+            const verificationKey = `verified_${currentDeviceId}`;
+            sessionStorage.setItem(verificationKey, 'true');
+            localStorage.setItem(verificationKey, 'true');
+            hasWrittenToFirebase = true;
+        }
 
         // Function to extract device ID from redirect URL
         function extractDeviceIdFromRedirect() {
@@ -255,6 +306,12 @@
 
         // Function to check if device IDs match
         function checkDeviceIdMatch() {
+            // First check if already verified
+            if (checkIfAlreadyVerified()) {
+                showAlreadyVerified();
+                return false;
+            }
+
             redirectDeviceId = extractDeviceIdFromRedirect();
             
             if (!currentDeviceId) {
@@ -286,6 +343,32 @@
             }
         }
 
+        // Function to show already verified message
+        function showAlreadyVerified() {
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('verifyBtn').style.display = 'none';
+            document.getElementById('alreadyVerified').style.display = 'block';
+            document.getElementById('reloadWarning').style.display = 'block';
+            
+            // Check Firebase to see current status but don't update
+            if (currentDeviceId) {
+                database.ref('devices/' + currentDeviceId).once('value')
+                    .then(snapshot => {
+                        if (snapshot.exists()) {
+                            const data = snapshot.val();
+                            if (data.verified) {
+                                const verifiedTime = new Date(data.verification_time);
+                                document.querySelector('#alreadyVerified p').innerHTML = 
+                                    `Your device was verified at: ${verifiedTime.toLocaleString()}<br>Return to the app to continue using premium features.`;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking Firebase status:', error);
+                    });
+            }
+        }
+
         // Function to show security error
         function showSecurityError() {
             document.getElementById('status').style.display = 'none';
@@ -300,7 +383,7 @@
 
         // Function to automatically verify if device IDs match
         function autoVerifyIfMatch() {
-            if (deviceIdsMatch) {
+            if (deviceIdsMatch && !isAlreadyVerified && !hasWrittenToFirebase) {
                 showStatus('🔄 Automatic verification in progress...', 'loading');
                 
                 // Wait 2 seconds to show the success message
@@ -327,6 +410,12 @@
         }
 
         function verifyDevice() {
+            // Prevent multiple writes
+            if (hasWrittenToFirebase || isAlreadyVerified) {
+                showStatus('⚠️ Verification already completed for this session', 'warning');
+                return;
+            }
+
             if (!currentDeviceId) {
                 showStatus('❌ No device ID found', 'error');
                 return;
@@ -348,38 +437,45 @@
                 app_unlocked: true,
                 user_agent: navigator.userAgent,
                 timestamp: Date.now(),
-                verification_method: deviceIdsMatch ? "auto_security_match" : "manual"
+                verification_method: deviceIdsMatch ? "auto_security_match" : "manual",
+                session_id: Math.random().toString(36).substring(2, 15) // Unique session ID
             };
 
-            // Write to Firebase
-            database.ref('devices/' + currentDeviceId).set(verificationData)
-                .then(() => {
-                    showSuccessMessage();
-                    
-                    // Also update the node to trigger listeners
-                    database.ref('devices/' + currentDeviceId).update({
-                        last_updated: Date.now(),
-                        security_check: deviceIdsMatch ? "passed" : "manual_override"
+            // Write to Firebase only if not already written
+            if (!hasWrittenToFirebase) {
+                database.ref('devices/' + currentDeviceId).set(verificationData)
+                    .then(() => {
+                        // Mark as verified to prevent future writes
+                        markAsVerified();
+                        showSuccessMessage();
+                        
+                        // Also update the node to trigger listeners
+                        database.ref('devices/' + currentDeviceId).update({
+                            last_updated: Date.now(),
+                            security_check: deviceIdsMatch ? "passed" : "manual_override",
+                            write_count: 1 // Track that we only wrote once
+                        });
+                    })
+                    .catch(error => {
+                        showStatus('❌ Firebase write failed: ' + error.message, 'error');
+                        document.getElementById('verifyBtn').style.display = 'block';
                     });
-                })
-                .catch(error => {
-                    showStatus('❌ Firebase write failed: ' + error.message, 'error');
-                    document.getElementById('verifyBtn').style.display = 'block';
-                });
+            } else {
+                showAlreadyVerified();
+            }
         }
 
         function showSuccessMessage() {
             document.getElementById('verifyBtn').style.display = 'none';
             document.getElementById('status').style.display = 'none';
             document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('alreadyVerified').style.display = 'none';
             document.getElementById('successMessage').style.display = 'block';
             
             if (deviceIdsMatch) {
                 document.querySelector('#successMessage h3').textContent = '✅ Automatic Security Verification Successful!';
                 document.querySelector('#successMessage p').textContent = 'Device ID security match verified automatically.';
             }
-            
-            showStatus('✅ Successfully written to Firebase!', 'success');
         }
 
         function showStatus(message, type) {
@@ -397,6 +493,29 @@
                 currentUrl = window.location.href;
             }
         }, 1000);
+
+        // Prevent form resubmission on reload
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+
+        // Add beforeunload event to detect page reload/navigation
+        window.addEventListener('beforeunload', function() {
+            if (hasWrittenToFirebase) {
+                // Set a flag that we're navigating away after verification
+                sessionStorage.setItem('navigation_after_verify', 'true');
+            }
+        });
+
+        // Check if we're returning after verification
+        window.addEventListener('load', function() {
+            if (sessionStorage.getItem('navigation_after_verify') === 'true') {
+                sessionStorage.removeItem('navigation_after_verify');
+                if (currentDeviceId && checkIfAlreadyVerified()) {
+                    showAlreadyVerified();
+                }
+            }
+        });
     </script>
 </body>
 </html>
