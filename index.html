@@ -310,7 +310,7 @@
             </div>
 
             <div class="auto-close-message" id="autoCloseMessage" style="display: none;">
-                ✅ Verification complete! This tab will close automatically in <span id="closeCountdown">3</span> seconds...
+                ✅ Verification complete! This tab will close automatically in <span id="closeCountdown">5</span> seconds...
             </div>
 
             <div class="timer" id="timer" style="display: none;">
@@ -366,11 +366,6 @@
         const statusMessageElement = document.getElementById('statusMessage');
         const verifyBtn = document.getElementById('verifyBtn');
         const btnText = document.getElementById('btnText');
-        const timerElement = document.getElementById('timer');
-        const countdownElement = document.getElementById('countdown');
-        const successAnimation = document.getElementById('successAnimation');
-        const autoCloseMessage = document.getElementById('autoCloseMessage');
-        const closeCountdownElement = document.getElementById('closeCountdown');
 
         // Track if verification was already processed
         let isVerified = false;
@@ -382,6 +377,9 @@
                 deviceIdElement.textContent = deviceId;
                 verificationIdElement.textContent = verificationId.substring(0, 20) + '...';
                 
+                console.log("Device ID:", deviceId);
+                console.log("Verification ID:", verificationId);
+                
                 // Auto-check verification status on page load
                 checkVerificationStatus();
                 
@@ -392,14 +390,8 @@
                     } else {
                         clearInterval(checkInterval);
                     }
-                }, 1500);
+                }, 2000);
                 
-                // Auto-verify after 1 second if not already verified
-                setTimeout(() => {
-                    if (!isVerified) {
-                        verifyDevice();
-                    }
-                }, 1000);
             } else {
                 showError('Missing required parameters. Please use the verification link from the app.');
             }
@@ -410,14 +402,20 @@
             if (isVerified) return;
             
             try {
+                console.log("Checking verification status for device:", deviceId);
+                
                 const deviceRef = database.ref('devices/' + deviceId);
                 const snapshot = await deviceRef.once('value');
                 
                 if (snapshot.exists()) {
                     const deviceData = snapshot.val();
+                    console.log("Device data found:", deviceData);
+                    
                     if (deviceData.verified && !isVerified) {
                         showVerifiedState();
                     }
+                } else {
+                    console.log("No device data found in Firebase");
                 }
             } catch (error) {
                 console.error('Error checking verification status:', error);
@@ -438,20 +436,42 @@
             btnText.innerHTML = '<div class="loading"></div> Verifying...';
 
             try {
-                // First check if the encrypted UID is valid and not used
+                console.log("Starting verification process...");
+                console.log("Checking UID:", verificationId);
+
+                // First check if the encrypted UID exists in Firebase
                 const uidRef = database.ref('encrypted_uids/' + verificationId);
                 const uidSnapshot = await uidRef.once('value');
 
                 if (!uidSnapshot.exists()) {
-                    showError('Invalid verification ID. Please generate a new link.');
-                    resetButton();
-                    return;
+                    console.log("UID not found in Firebase:", verificationId);
+                    
+                    // Try alternative path - sometimes Firebase adds quotes
+                    const uidRefAlt = database.ref('encrypted_uids').orderByKey().equalTo(verificationId);
+                    const uidSnapshotAlt = await uidRefAlt.once('value');
+                    
+                    if (!uidSnapshotAlt.exists()) {
+                        showError('Invalid verification ID. Please generate a new link from the app.');
+                        resetButton();
+                        return;
+                    } else {
+                        console.log("UID found using alternative method");
+                    }
                 }
 
                 const uidData = uidSnapshot.val();
+                console.log("UID data:", uidData);
+                
+                // Handle case where uidData might be null
+                if (!uidData) {
+                    showError('Verification data corrupted. Please generate a new link.');
+                    resetButton();
+                    return;
+                }
                 
                 if (uidData.used) {
                     // If already used, check if device is verified
+                    console.log("UID already used, checking device status");
                     await checkVerificationStatus();
                     resetButton();
                     return;
@@ -472,12 +492,14 @@
                 }
 
                 // Mark UID as used IMMEDIATELY
+                console.log("Marking UID as used");
                 await uidRef.update({
                     used: true,
                     used_at: currentTime
                 });
 
                 // Update device verification status IMMEDIATELY
+                console.log("Updating device verification status");
                 const deviceRef = database.ref('devices/' + deviceId);
                 await deviceRef.set({
                     verified: true,
@@ -500,7 +522,7 @@
 
             } catch (error) {
                 console.error('Verification error:', error);
-                showError('Verification failed. Please try again.');
+                showError('Verification failed: ' + error.message + '. Please try again.');
                 resetButton();
             }
         }
@@ -514,12 +536,12 @@
             verificationStatusElement.style.color = '#155724';
             
             verifyBtn.style.display = 'none';
-            successAnimation.style.display = 'block';
-            timerElement.style.display = 'block';
-            autoCloseMessage.style.display = 'block';
+            document.getElementById('successAnimation').style.display = 'block';
+            document.getElementById('timer').style.display = 'block';
+            document.getElementById('autoCloseMessage').style.display = 'block';
             
             // Start countdown timer
-            startCountdown(2 * 60); // 2 minutes
+            startCountdown(2 * 60);
             
             // Start auto-close countdown
             startAutoCloseCountdown();
@@ -527,16 +549,18 @@
 
         // Start auto-close countdown
         function startAutoCloseCountdown() {
-            let countdown = 3;
+            let countdown = 5;
             const countdownInterval = setInterval(() => {
-                closeCountdownElement.textContent = countdown;
+                document.getElementById('closeCountdown').textContent = countdown;
                 if (countdown <= 0) {
                     clearInterval(countdownInterval);
-                    window.close();
-                    // If window.close doesn't work, show final message
-                    setTimeout(() => {
-                        autoCloseMessage.innerHTML = '✅ Verification complete! You can safely close this tab and return to the app.';
-                    }, 1000);
+                    try {
+                        window.close();
+                    } catch (e) {
+                        console.log("Could not close window automatically");
+                    }
+                    // Show final message
+                    document.getElementById('autoCloseMessage').innerHTML = '✅ Verification complete! You can safely close this tab and return to the app.';
                 }
                 countdown--;
             }, 1000);
@@ -565,13 +589,13 @@
                 const minutes = Math.floor(timer / 60);
                 const seconds = timer % 60;
                 
-                countdownElement.textContent = 
+                document.getElementById('countdown').textContent = 
                     minutes.toString().padStart(2, '0') + ':' + 
                     seconds.toString().padStart(2, '0');
                 
                 if (--timer < 0) {
                     clearInterval(interval);
-                    countdownElement.textContent = '00:00';
+                    document.getElementById('countdown').textContent = '00:00';
                     statusMessageElement.textContent = '⏰ Verification expired';
                     statusMessageElement.className = 'status';
                 }
