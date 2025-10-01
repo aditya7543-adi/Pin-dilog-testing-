@@ -45,16 +45,6 @@
             font-size: 16px;
         }
         
-        .timer-display {
-            background: linear-gradient(135deg, #FF9800, #FF5722);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        
         .device-info {
             background: #f8f9fa;
             padding: 15px;
@@ -123,50 +113,73 @@
             border: 1px solid #f5c6cb;
         }
         
-        .firebase-info {
+        .instructions {
             background: #e3f2fd;
             color: #1565c0;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-size: 12px;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: left;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔓 HackerTMM Verification</h1>
-        <p class="subtitle">2-Minute Device Verification</p>
-        
-        <div class="firebase-info">
-            🔗 Connected to: pin-dilog-testing Firebase
-        </div>
-        
-        <div class="timer-display" id="timerDisplay">
-            ⏱️ 2:00
-        </div>
+        <h1>🔒 HackerTMM Verification</h1>
+        <p class="subtitle">Complete device verification to unlock premium features</p>
         
         <div class="device-info">
             <strong>Device ID:</strong>
             <div class="device-id" id="deviceIdDisplay">Loading...</div>
         </div>
         
+        <div class="instructions">
+            <strong>📋 Instructions:</strong>
+            <ol>
+                <li>Click the "Verify This Device" button below</li>
+                <li>Wait for verification to complete</li>
+                <li>Return to the app after verification</li>
+                <li>You'll have 2 minutes of premium access</li>
+            </ol>
+        </div>
+        
         <div id="status"></div>
         
         <button class="verify-btn" id="verifyBtn" onclick="verifyDevice()">
-            ✅ Verify This Device (2 Minutes)
+            ✅ Verify This Device
         </button>
         
-        <div class="firebase-info">
-            📱 This verification will be checked on every app start
+        <div id="successMessage" style="display: none;">
+            <div class="status success">
+                <h3>✅ Verification Successful!</h3>
+                <p>Your device has been verified successfully.</p>
+                <p>You can now return to the app and enjoy premium features for 2 minutes.</p>
+            </div>
         </div>
     </div>
 
     <script>
-        // Firebase configuration for YOUR database
-        const firebaseConfig = {
-            databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com"
-        };
+        // Firebase configuration - UPDATE WITH YOUR ACTUAL CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyDVPf8Il81efhgqurLEdEgfCxMpI7oJF5U",
+  authDomain: "pin-dilog-testing.firebaseapp.com",
+  databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com",
+  projectId: "pin-dilog-testing",
+  storageBucket: "pin-dilog-testing.firebasestorage.app",
+  messagingSenderId: "744752839175",
+  appId: "1:744752839175:web:bb55244e2b694a4eecc8a2",
+  measurementId: "G-J46D2FRVSD"
+};
+
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -175,35 +188,14 @@
         // Get device ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('device');
-        let isVerified = false;
-        const TWO_MINUTES = 2 * 60 * 1000;
 
         // Display device info
         if (deviceId) {
             document.getElementById('deviceIdDisplay').textContent = deviceId;
             checkExistingVerification();
-            startTimer();
         } else {
             showStatus('❌ Error: No device ID found in URL', 'error');
             document.getElementById('verifyBtn').disabled = true;
-        }
-
-        function startTimer() {
-            let timeLeft = 120;
-            const timerDisplay = document.getElementById('timerDisplay');
-            
-            const timer = setInterval(() => {
-                const minutes = Math.floor(timeLeft / 60);
-                const seconds = timeLeft % 60;
-                timerDisplay.textContent = `⏱️ ${minutes}:${seconds.toString().padStart(2, '0')}`;
-                
-                if (timeLeft <= 0) {
-                    clearInterval(timer);
-                    timerDisplay.textContent = '⏰ Time Expired!';
-                    timerDisplay.style.background = 'linear-gradient(135deg, #f44336, #d32f2f)';
-                }
-                timeLeft--;
-            }, 1000);
         }
 
         function checkExistingVerification() {
@@ -214,24 +206,16 @@
                         if (data.verified && data.verification_time) {
                             const verificationTime = data.verification_time;
                             const currentTime = Date.now();
+                            const twoMinutes = 2 * 60 * 1000;
                             
-                            if ((currentTime - verificationTime) < TWO_MINUTES) {
-                                isVerified = true;
-                                showStatus('✅ This device is already verified for 2 minutes!', 'success');
-                                document.getElementById('verifyBtn').disabled = true;
-                                document.getElementById('verifyBtn').textContent = 'Already Verified';
-                                
-                                const remaining = TWO_MINUTES - (currentTime - verificationTime);
-                                const remainingSeconds = Math.floor(remaining / 1000);
-                                const minutes = Math.floor(remainingSeconds / 60);
-                                const seconds = remainingSeconds % 60;
-                                document.getElementById('timerDisplay').textContent = `⏱️ ${minutes}:${seconds.toString().padStart(2, '0')}`;
+                            if ((currentTime - verificationTime) < twoMinutes) {
+                                showSuccessMessage();
                             }
                         }
                     }
                 })
                 .catch(error => {
-                    showStatus('❌ Firebase error: ' + error.message, 'error');
+                    console.error('Error checking verification:', error);
                 });
         }
 
@@ -241,7 +225,7 @@
                 return;
             }
 
-            showStatus('🔄 Verifying device in Firebase...', 'loading');
+            showStatus('🔄 Verifying your device...', 'loading');
             document.getElementById('verifyBtn').disabled = true;
             document.getElementById('verifyBtn').textContent = 'Verifying...';
 
@@ -254,7 +238,7 @@
                 verified_at: new Date().toISOString(),
                 app_name: "HackerTMM",
                 verification_duration: "2_minutes",
-                expires_at: Date.now() + TWO_MINUTES,
+                expires_at: Date.now() + (2 * 60 * 1000),
                 app_unlocked: true,
                 user_agent: navigator.userAgent,
                 timestamp: Date.now()
@@ -262,35 +246,25 @@
 
             database.ref('devices/' + deviceId).update(verificationData)
                 .then(() => {
-                    showStatus('✅ Device verified for 2 minutes! Firebase updated successfully.', 'success');
-                    document.getElementById('verifyBtn').textContent = 'Verified Successfully';
-                    document.getElementById('verifyBtn').style.background = 'linear-gradient(135deg, #2196F3, #1976D2)';
-                    isVerified = true;
-                    
-                    setTimeout(() => {
-                        document.body.innerHTML = `
-                            <div class="container">
-                                <h1>✅ Verification Complete</h1>
-                                <div class="status success">
-                                    <h3>Device Successfully Verified!</h3>
-                                    <p>Your device has been registered in Firebase.</p>
-                                    <p>You can now close this window and return to the app.</p>
-                                </div>
-                                <div class="firebase-info">
-                                    ✅ Firebase Database: pin-dilog-testing<br>
-                                    ✅ Device ID: ${deviceId}<br>
-                                    ✅ Access Duration: 2 Minutes<br>
-                                    ✅ Status: Verified
-                                </div>
-                            </div>
-                        `;
-                    }, 3000);
+                    showSuccessMessage();
                 })
                 .catch(error => {
-                    showStatus('❌ Firebase update failed: ' + error.message, 'error');
+                    showStatus('❌ Verification failed: ' + error.message, 'error');
                     document.getElementById('verifyBtn').disabled = false;
                     document.getElementById('verifyBtn').textContent = 'Try Again';
                 });
+        }
+
+        function showSuccessMessage() {
+            document.getElementById('verifyBtn').style.display = 'none';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'block';
+            
+            // Update status in Firebase for the app to detect
+            database.ref('devices/' + deviceId).update({
+                verification_completed: true,
+                last_updated: Date.now()
+            });
         }
 
         function showStatus(message, type) {
