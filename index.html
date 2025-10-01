@@ -113,43 +113,28 @@
             border: 1px solid #f5c6cb;
         }
         
-        .instructions {
+        .firebase-info {
             background: #e3f2fd;
             color: #1565c0;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            text-align: left;
-        }
-        
-        .instructions ol {
-            margin-left: 20px;
-            margin-top: 10px;
-        }
-        
-        .instructions li {
-            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔒 HackerTMM Verification</h1>
+        <h1>🔓 HackerTMM Verification</h1>
         <p class="subtitle">Complete device verification to unlock premium features</p>
+        
+        <div class="firebase-info">
+            🔗 Connected to: pin-dilog-testing Firebase
+        </div>
         
         <div class="device-info">
             <strong>Device ID:</strong>
             <div class="device-id" id="deviceIdDisplay">Loading...</div>
-        </div>
-        
-        <div class="instructions">
-            <strong>📋 Instructions:</strong>
-            <ol>
-                <li>Click the "Verify This Device" button below</li>
-                <li>Wait for verification to complete</li>
-                <li>Return to the app after verification</li>
-                <li>You'll have 2 minutes of premium access</li>
-            </ol>
         </div>
         
         <div id="status"></div>
@@ -161,14 +146,13 @@
         <div id="successMessage" style="display: none;">
             <div class="status success">
                 <h3>✅ Verification Successful!</h3>
-                <p>Your device has been verified successfully.</p>
-                <p>You can now return to the app and enjoy premium features for 2 minutes.</p>
+                <p>Your device has been verified in Firebase.</p>
+                <p>Return to the app to access premium features for 2 minutes.</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Firebase configuration - UPDATE WITH YOUR ACTUAL CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyDVPf8Il81efhgqurLEdEgfCxMpI7oJF5U",
   authDomain: "pin-dilog-testing.firebaseapp.com",
@@ -179,7 +163,6 @@ const firebaseConfig = {
   appId: "1:744752839175:web:bb55244e2b694a4eecc8a2",
   measurementId: "G-J46D2FRVSD"
 };
-
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -225,9 +208,9 @@ const firebaseConfig = {
                 return;
             }
 
-            showStatus('🔄 Verifying your device...', 'loading');
+            showStatus('🔄 Writing to Firebase...', 'loading');
             document.getElementById('verifyBtn').disabled = true;
-            document.getElementById('verifyBtn').textContent = 'Verifying...';
+            document.getElementById('verifyBtn').textContent = 'Writing to Firebase...';
 
             const verificationData = {
                 verified: true,
@@ -244,12 +227,18 @@ const firebaseConfig = {
                 timestamp: Date.now()
             };
 
-            database.ref('devices/' + deviceId).update(verificationData)
+            // Write to Firebase
+            database.ref('devices/' + deviceId).set(verificationData)
                 .then(() => {
                     showSuccessMessage();
+                    
+                    // Also update the node to trigger listeners
+                    database.ref('devices/' + deviceId).update({
+                        last_updated: Date.now()
+                    });
                 })
                 .catch(error => {
-                    showStatus('❌ Verification failed: ' + error.message, 'error');
+                    showStatus('❌ Firebase write failed: ' + error.message, 'error');
                     document.getElementById('verifyBtn').disabled = false;
                     document.getElementById('verifyBtn').textContent = 'Try Again';
                 });
@@ -260,11 +249,7 @@ const firebaseConfig = {
             document.getElementById('status').style.display = 'none';
             document.getElementById('successMessage').style.display = 'block';
             
-            // Update status in Firebase for the app to detect
-            database.ref('devices/' + deviceId).update({
-                verification_completed: true,
-                last_updated: Date.now()
-            });
+            showStatus('✅ Successfully written to Firebase!', 'success');
         }
 
         function showStatus(message, type) {
