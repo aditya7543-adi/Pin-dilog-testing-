@@ -66,13 +66,6 @@
             margin-bottom: 20px;
             text-align: center;
             border-left: 4px solid #4a00e0;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
         }
         
         .status-icon {
@@ -149,12 +142,14 @@
         
         .already-verified {
             border-left-color: #17a2b8;
-            animation: none;
         }
         
         .success-verified {
             border-left-color: #28a745;
-            animation: none;
+        }
+        
+        .expired-verified {
+            border-left-color: #ff9800;
         }
         
         .hidden {
@@ -189,6 +184,20 @@
                 <div class="status-icon">🎉</div>
                 <div class="status-title">Device Verified Successfully!</div>
                 <div class="status-message">Your device has been verified. This tab will close automatically.</div>
+            </div>
+            
+            <!-- Expired Verification State -->
+            <div id="expiredVerifiedState" class="status-box expired-verified hidden">
+                <div class="status-icon">🔄</div>
+                <div class="status-title">Verification Expired</div>
+                <div class="status-message">Your previous verification has expired. Re-verifying your device now.</div>
+            </div>
+            
+            <!-- New Device State -->
+            <div id="newDeviceState" class="status-box hidden">
+                <div class="status-icon">📱</div>
+                <div class="status-title">New Device Detected</div>
+                <div class="status-message">Setting up verification for your device.</div>
             </div>
             
             <!-- Error State -->
@@ -236,6 +245,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('device');
         
+        // Constants
+        const VERIFICATION_DURATION = 2 * 60 * 1000; // 2 minutes
+        
         // DOM elements
         const deviceIdElement = document.getElementById('deviceId');
         const countdownElement = document.getElementById('countdown');
@@ -245,6 +257,8 @@
         const loadingState = document.getElementById('loadingState');
         const alreadyVerifiedState = document.getElementById('alreadyVerifiedState');
         const successVerifiedState = document.getElementById('successVerifiedState');
+        const expiredVerifiedState = document.getElementById('expiredVerifiedState');
+        const newDeviceState = document.getElementById('newDeviceState');
         const errorState = document.getElementById('errorState');
         
         // Set device ID in UI
@@ -262,6 +276,8 @@
             loadingState.classList.remove('hidden');
             alreadyVerifiedState.classList.add('hidden');
             successVerifiedState.classList.add('hidden');
+            expiredVerifiedState.classList.add('hidden');
+            newDeviceState.classList.add('hidden');
             errorState.classList.add('hidden');
         }
         
@@ -270,6 +286,8 @@
             loadingState.classList.add('hidden');
             alreadyVerifiedState.classList.remove('hidden');
             successVerifiedState.classList.add('hidden');
+            expiredVerifiedState.classList.add('hidden');
+            newDeviceState.classList.add('hidden');
             errorState.classList.add('hidden');
         }
         
@@ -278,6 +296,28 @@
             loadingState.classList.add('hidden');
             alreadyVerifiedState.classList.add('hidden');
             successVerifiedState.classList.remove('hidden');
+            expiredVerifiedState.classList.add('hidden');
+            newDeviceState.classList.add('hidden');
+            errorState.classList.add('hidden');
+        }
+        
+        // Function to show expired verification state
+        function showExpiredVerifiedState() {
+            loadingState.classList.add('hidden');
+            alreadyVerifiedState.classList.add('hidden');
+            successVerifiedState.classList.add('hidden');
+            expiredVerifiedState.classList.remove('hidden');
+            newDeviceState.classList.add('hidden');
+            errorState.classList.add('hidden');
+        }
+        
+        // Function to show new device state
+        function showNewDeviceState() {
+            loadingState.classList.add('hidden');
+            alreadyVerifiedState.classList.add('hidden');
+            successVerifiedState.classList.add('hidden');
+            expiredVerifiedState.classList.add('hidden');
+            newDeviceState.classList.remove('hidden');
             errorState.classList.add('hidden');
         }
         
@@ -286,6 +326,8 @@
             loadingState.classList.add('hidden');
             alreadyVerifiedState.classList.add('hidden');
             successVerifiedState.classList.add('hidden');
+            expiredVerifiedState.classList.add('hidden');
+            newDeviceState.classList.add('hidden');
             errorState.classList.remove('hidden');
         }
         
@@ -298,37 +340,56 @@
             }
             
             try {
-                // Check if device is already verified
+                // Check if device exists in Firebase
                 const deviceRef = database.ref('devices/' + deviceId);
                 const snapshot = await deviceRef.once('value');
                 const deviceData = snapshot.val();
                 
                 const currentTime = new Date().getTime();
-                const verificationDuration = 2 * 60 * 1000; // 2 minutes
                 
-                if (deviceData && deviceData.verified && 
-                    (currentTime - deviceData.verification_time) < verificationDuration) {
-                    // Device is already verified
-                    showAlreadyVerifiedState();
-                    // Close tab in 1 second
-                    startCountdown(1);
+                // Check different scenarios
+                if (deviceData && deviceData.verified && deviceData.verification_time) {
+                    // Device exists and is verified - check if expired
+                    if ((currentTime - deviceData.verification_time) < VERIFICATION_DURATION) {
+                        // Device is already verified and not expired
+                        showAlreadyVerifiedState();
+                        startCountdown(1);
+                    } else {
+                        // Device verification has expired - update Firebase
+                        showExpiredVerifiedState();
+                        await updateDeviceVerification(deviceRef, currentTime);
+                        startCountdown(2);
+                    }
+                } else if (deviceData && (!deviceData.verified || !deviceData.verification_time)) {
+                    // Device exists but verification data is incomplete - update Firebase
+                    showExpiredVerifiedState();
+                    await updateDeviceVerification(deviceRef, currentTime);
+                    startCountdown(2);
                 } else {
-                    // Verify the device
-                    await deviceRef.set({
-                        verified: true,
-                        verification_time: currentTime
-                    });
-                    
-                    showSuccessVerifiedState();
-                    // Close tab in 2 seconds
+                    // Device not found in Firebase - create new verification
+                    showNewDeviceState();
+                    await updateDeviceVerification(deviceRef, currentTime);
                     startCountdown(2);
                 }
                 
             } catch (error) {
                 console.error('Error verifying device:', error);
                 showErrorState();
-                // Close tab in 2 seconds even with error
                 startCountdown(2);
+            }
+        }
+        
+        // Function to update device verification in Firebase
+        async function updateDeviceVerification(deviceRef, currentTime) {
+            try {
+                await deviceRef.set({
+                    verified: true,
+                    verification_time: currentTime
+                });
+                showSuccessVerifiedState();
+            } catch (error) {
+                console.error('Error updating device verification:', error);
+                throw error;
             }
         }
         
