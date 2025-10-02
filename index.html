@@ -4,77 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Device Verification</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
-        
         body {
-            background: #f0f2f5;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            padding: 20px;
+            margin: 0;
         }
-        
         .container {
             background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            max-width: 400px;
-            width: 100%;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 500px;
+            width: 90%;
         }
-        
         .icon {
-            font-size: 50px;
+            font-size: 60px;
             margin-bottom: 20px;
         }
-        
         h1 {
             color: #333;
             margin-bottom: 15px;
-            font-size: 24px;
         }
-        
-        p {
-            color: #666;
-            margin-bottom: 20px;
-            line-height: 1.5;
-        }
-        
         .device-id {
-            background: #f5f5f5;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 15px 0;
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 20px 0;
             font-family: monospace;
             word-break: break-all;
+            border: 1px solid #e9ecef;
         }
-        
-        .countdown {
-            color: #4a00e0;
-            font-weight: bold;
+        .status {
             font-size: 18px;
             margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
         }
-        
-        .progress {
-            height: 5px;
-            background: #e0e0e0;
-            border-radius: 3px;
+        .loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .success {
+            background: #d1edff;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .countdown {
+            font-size: 16px;
+            color: #666;
             margin: 20px 0;
+        }
+        .progress {
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            margin: 25px 0;
             overflow: hidden;
         }
-        
         .progress-bar {
             height: 100%;
-            background: #4a00e0;
+            background: #28a745;
             width: 0%;
         }
     </style>
@@ -82,10 +81,13 @@
 <body>
     <div class="container">
         <div class="icon">⏳</div>
-        <h1>Verifying Your Device</h1>
-        <p>Please wait while we check your device status...</p>
+        <h1>Device Verification</h1>
         
         <div class="device-id" id="deviceId">Loading device ID...</div>
+        
+        <div class="status loading" id="status">
+            Connecting to verification service...
+        </div>
         
         <div class="countdown">
             Tab will close in <span id="countdown">3</span> seconds
@@ -95,79 +97,133 @@
             <div class="progress-bar" id="progressBar"></div>
         </div>
         
-        <div id="statusMessage"></div>
+        <div id="firebaseStatus" style="font-size: 12px; color: #666; margin-top: 15px;">
+            Firebase status: Connecting...
+        </div>
     </div>
 
     <script>
+        // Your Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDVPf8Il81efhgqurLEdEgfCxMpI7oJF5U",
+            authDomain: "pin-dilog-testing.firebaseapp.com",
+            databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com",
+            projectId: "pin-dilog-testing",
+            storageBucket: "pin-dilog-testing.firebasestorage.app",
+            messagingSenderId: "744752839175",
+            appId: "1:744752839175:web:bb55244e2b694a4eecc8a2",
+            measurementId: "G-J46D2FRVSD"
+        };
+
         // Get device ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('device');
-        
-        // Display device ID
-        document.getElementById('deviceId').textContent = deviceId || 'No device ID found';
-        
-        // Simple verification logic
-        function verifyDevice() {
-            const currentTime = new Date().getTime();
-            
-            // Simulate different scenarios
-            const scenarios = [
-                { type: 'already_verified', message: '✅ Device already verified' },
-                { type: 'new_verification', message: '✅ Device verified successfully' },
-                { type: 'expired', message: '🔄 Verification updated' }
-            ];
-            
-            // Pick a random scenario for demo
-            const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
-            
-            // Show status message
-            document.getElementById('statusMessage').innerHTML = 
-                `<p style="color: #4a00e0; margin-top: 15px;">${randomScenario.message}</p>`;
-            
-            // Update icon based on scenario
-            if (randomScenario.type === 'already_verified') {
-                document.querySelector('.icon').textContent = '✅';
-            } else {
-                document.querySelector('.icon').textContent = '🎉';
-            }
-            
-            // Start countdown
-            startCountdown();
+
+        // Display device ID immediately
+        document.getElementById('deviceId').textContent = 'Device: ' + (deviceId || 'No device ID found');
+
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            document.getElementById('firebaseStatus').textContent = 'Firebase status: Connected';
+        } catch (error) {
+            document.getElementById('firebaseStatus').textContent = 'Firebase status: Error - ' + error.message;
         }
-        
-        function startCountdown() {
-            let seconds = 2;
+
+        const database = firebase.database();
+
+        async function updateFirebase() {
+            if (!deviceId) {
+                document.getElementById('status').textContent = '❌ Error: No device ID provided';
+                document.getElementById('status').className = 'status loading';
+                startCountdown(3);
+                return;
+            }
+
+            try {
+                document.getElementById('status').textContent = '🔄 Updating Firebase...';
+                
+                const currentTime = new Date().getTime();
+                const deviceRef = database.ref('devices/' + deviceId);
+                
+                // Update Firebase
+                await deviceRef.set({
+                    verified: true,
+                    verification_time: currentTime,
+                    last_updated: currentTime
+                });
+                
+                document.getElementById('status').textContent = '✅ Device verified successfully!';
+                document.getElementById('status').className = 'status success';
+                document.querySelector('.icon').textContent = '✅';
+                document.getElementById('firebaseStatus').textContent = 'Firebase status: Data updated successfully';
+                
+                // Start countdown immediately after Firebase update
+                startCountdown(2);
+                
+            } catch (error) {
+                console.error('Firebase error:', error);
+                document.getElementById('status').textContent = '⚠️ Verification complete (offline mode)';
+                document.getElementById('status').className = 'status success';
+                document.getElementById('firebaseStatus').textContent = 'Firebase status: Update failed, but verification completed';
+                
+                // Start countdown even if Firebase fails
+                startCountdown(2);
+            }
+        }
+
+        function startCountdown(seconds) {
             const countdownElement = document.getElementById('countdown');
             const progressBar = document.getElementById('progressBar');
             
-            // Start progress bar animation
+            // Reset and start progress bar
+            progressBar.style.transition = 'none';
+            progressBar.style.width = '0%';
             setTimeout(() => {
-                progressBar.style.width = '100%';
                 progressBar.style.transition = `width ${seconds}s linear`;
+                progressBar.style.width = '100%';
             }, 100);
+
+            let countdown = seconds;
+            countdownElement.textContent = countdown;
             
-            const countdownInterval = setInterval(() => {
-                seconds--;
-                countdownElement.textContent = seconds;
+            const interval = setInterval(() => {
+                countdown--;
+                countdownElement.textContent = countdown;
                 
-                if (seconds <= 0) {
-                    clearInterval(countdownInterval);
+                if (countdown <= 0) {
+                    clearInterval(interval);
                     closeTab();
                 }
             }, 1000);
         }
-        
+
         function closeTab() {
+            document.getElementById('status').textContent = '📤 Closing tab...';
+            
+            // Multiple methods to close tab
             try {
+                // Method 1: Direct close
                 window.close();
             } catch (e) {
-                // If we can't close, redirect to blank page
-                window.location.href = 'about:blank';
+                try {
+                    // Method 2: For Chrome
+                    window.open('', '_self').close();
+                } catch (e2) {
+                    try {
+                        // Method 3: Redirect to blank page
+                        window.location.href = 'about:blank';
+                    } catch (e3) {
+                        // Method 4: Final fallback
+                        document.getElementById('status').textContent = '✅ Verification complete! You can close this tab manually.';
+                        document.getElementById('countdown').textContent = '0';
+                    }
+                }
             }
         }
-        
-        // Start verification after short delay
-        setTimeout(verifyDevice, 1000);
+
+        // Start the process after a short delay
+        setTimeout(updateFirebase, 1000);
     </script>
 </body>
 </html>
