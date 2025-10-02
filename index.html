@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HackerTMM - Device Verification</title>
+    <title>Device Verification</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -11,673 +11,398 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-        }
-
-        body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
             min-height: 100vh;
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             padding: 20px;
         }
-
+        
         .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
             max-width: 500px;
             width: 100%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
         }
-
+        
         .header {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
+            background: #4a00e0;
             color: white;
-            padding: 30px 20px;
+            padding: 25px;
             text-align: center;
         }
-
+        
         .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-            font-weight: 600;
+            font-size: 24px;
+            margin-bottom: 8px;
         }
-
+        
         .header p {
-            font-size: 16px;
             opacity: 0.9;
-        }
-
-        .content {
-            padding: 30px;
-        }
-
-        .device-info {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-            border-left: 4px solid #4CAF50;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .info-row:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-
-        .label {
-            font-weight: 600;
-            color: #495057;
-        }
-
-        .value {
-            color: #6c757d;
-            font-family: 'Courier New', monospace;
-            background: #e9ecef;
-            padding: 4px 8px;
-            border-radius: 4px;
             font-size: 14px;
         }
-
-        .status-container {
-            text-align: center;
-            margin: 25px 0;
+        
+        .content {
+            padding: 25px;
         }
-
-        .status {
-            display: inline-flex;
-            align-items: center;
-            background: #fff3cd;
-            color: #856404;
-            padding: 12px 20px;
-            border-radius: 25px;
-            font-weight: 600;
-            border: 2px solid #ffeaa7;
-        }
-
-        .status.verified {
-            background: #d4edda;
-            color: #155724;
-            border-color: #c3e6cb;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #f5c6cb;
-        }
-
-        .verify-btn {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-            border: none;
-            padding: 16px 32px;
-            font-size: 18px;
-            font-weight: 600;
-            border-radius: 12px;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-        }
-
-        .verify-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
-        }
-
-        .verify-btn:active {
-            transform: translateY(0);
-        }
-
-        .verify-btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #ffffff;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 10px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .instructions {
-            background: #e7f3ff;
-            border-radius: 12px;
+        
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 8px;
             padding: 20px;
-            margin-top: 25px;
-            border-left: 4px solid #2196F3;
+            margin-bottom: 20px;
+            text-align: center;
+            border-left: 4px solid #4a00e0;
         }
-
-        .instructions h3 {
-            color: #1976d2;
+        
+        .status-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .status-title {
+            font-size: 20px;
+            font-weight: 600;
             margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            color: #333;
         }
-
-        .instructions ol {
-            padding-left: 20px;
-            color: #495057;
-        }
-
-        .instructions li {
-            margin-bottom: 8px;
+        
+        .status-message {
+            color: #666;
+            font-size: 15px;
             line-height: 1.5;
         }
-
+        
+        .device-info {
+            background: #eef5ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .device-id {
+            font-family: monospace;
+            font-weight: bold;
+            color: #4a00e0;
+            word-break: break-all;
+        }
+        
         .timer {
             text-align: center;
-            margin: 15px 0;
+            margin: 25px 0;
             font-size: 14px;
-            color: #6c757d;
+            color: #666;
         }
-
-        .success-animation {
-            text-align: center;
-            margin: 20px 0;
+        
+        .timer span {
+            font-weight: bold;
+            color: #4a00e0;
         }
-
-        .checkmark {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
+        
+        .btn {
             display: block;
-            stroke-width: 2;
-            stroke: #4CAF50;
-            stroke-miterlimit: 10;
-            margin: 0 auto;
-            box-shadow: inset 0px 0px 0px #4CAF50;
-            animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            text-decoration: none;
         }
-
-        .checkmark__circle {
-            stroke-dasharray: 166;
-            stroke-dashoffset: 166;
-            stroke-width: 2;
-            stroke-miterlimit: 10;
-            stroke: #4CAF50;
-            fill: none;
-            animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+        
+        .btn-primary {
+            background: #4a00e0;
+            color: white;
         }
-
-        .checkmark__check {
-            transform-origin: 50% 50%;
-            stroke-dasharray: 48;
-            stroke-dashoffset: 48;
-            animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+        
+        .btn-primary:hover {
+            background: #3a00b0;
         }
-
-        @keyframes stroke {
-            100% { stroke-dashoffset: 0; }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            margin-top: 10px;
         }
-
-        @keyframes scale {
-            0%, 100% { transform: none; }
-            50% { transform: scale3d(1.1, 1.1, 1); }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
         }
-
-        @keyframes fill {
-            100% { box-shadow: inset 0px 0px 0px 40px #4CAF50; }
-        }
-
+        
         .footer {
             text-align: center;
             padding: 20px;
-            color: #6c757d;
-            font-size: 14px;
-            border-top: 1px solid #e9ecef;
+            color: #888;
+            font-size: 12px;
+            border-top: 1px solid #eee;
         }
-
-        .auto-close-message {
-            text-align: center;
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            border: 1px solid #c3e6cb;
+        
+        .progress-bar {
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
         }
-
-        .auto-verify-message {
-            text-align: center;
-            background: #fff3cd;
-            color: #856404;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-            border: 1px solid #ffeaa7;
+        
+        .progress {
+            height: 100%;
+            background: #4a00e0;
+            width: 0%;
+            transition: width 2s linear;
         }
-
-        @media (max-width: 480px) {
-            .container {
-                border-radius: 15px;
-            }
-            
-            .header {
-                padding: 25px 15px;
-            }
-            
-            .header h1 {
-                font-size: 24px;
-            }
-            
-            .content {
-                padding: 20px;
-            }
+        
+        .progress-fast {
+            transition: width 1s linear;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .already-verified {
+            border-left-color: #17a2b8;
+        }
+        
+        .success-verified {
+            border-left-color: #28a745;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔒 Device Verification</h1>
-            <p>Secure access verification required</p>
+            <h1>Device Verification</h1>
+            <p>Verify your device to unlock premium features</p>
         </div>
-
+        
         <div class="content">
+            <!-- Loading State -->
+            <div class="status-box" id="loadingState">
+                <div class="status-icon">⏳</div>
+                <div class="status-title">Checking Device Status</div>
+                <div class="status-message">Please wait while we verify your device...</div>
+            </div>
+            
+            <!-- Already Verified State -->
+            <div id="alreadyVerifiedState" class="status-box already-verified hidden">
+                <div class="status-icon">✅</div>
+                <div class="status-title">Device Already Verified</div>
+                <div class="status-message">Your device is already verified. No further action is needed.</div>
+            </div>
+            
+            <!-- Success Verification State -->
+            <div id="successVerifiedState" class="status-box success-verified hidden">
+                <div class="status-icon">🎉</div>
+                <div class="status-title">Device Verified Successfully!</div>
+                <div class="status-message">Your device has been verified. You can now access all premium features.</div>
+            </div>
+            
+            <!-- Error State -->
+            <div id="errorState" class="status-box hidden" style="border-left-color: #dc3545;">
+                <div class="status-icon">❌</div>
+                <div class="status-title">Verification Error</div>
+                <div class="status-message">There was an error verifying your device. Please try again.</div>
+            </div>
+            
             <div class="device-info">
-                <div class="info-row">
-                    <span class="label">Device ID:</span>
-                    <span class="value" id="deviceId">Loading...</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Verification ID:</span>
-                    <span class="value" id="verificationId">Loading...</span>
-                </div>
-                <div class="info-row">
-                    <span class="label">Status:</span>
-                    <span class="value" id="verificationStatus">Pending</span>
-                </div>
+                <p>Device ID: <span class="device-id" id="deviceId">Loading...</span></p>
             </div>
-
-            <div class="status-container">
-                <div class="status" id="statusMessage">
-                    ⏳ Auto-verification starting...
-                </div>
+            
+            <div class="timer">
+                This tab will automatically close in <span id="countdown">2</span> seconds
             </div>
-
-            <div class="auto-verify-message" id="autoVerifyMessage">
-                🔄 Automatic verification in progress. Please wait...
+            
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
             </div>
-
-            <div class="auto-close-message" id="autoCloseMessage" style="display: none;">
-                ✅ Verification complete! This tab will close automatically in <span id="closeCountdown">5</span> seconds...
-            </div>
-
-            <div class="timer" id="timer" style="display: none;">
-                Access granted for: <span id="countdown">2:00</span>
-            </div>
-
-            <div class="success-animation" id="successAnimation" style="display: none;">
-                <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                    <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
-                    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-                </svg>
-            </div>
-
-            <button class="verify-btn" id="verifyBtn" onclick="verifyDevice()" style="display: none;">
-                <span id="btnText">✅ Verify This Device</span>
-            </button>
-
-            <div class="instructions">
-                <h3>📋 How to Verify</h3>
-                <ol>
-                    <li>Verification starts automatically when you open this page</li>
-                    <li>Wait for the verification process to complete</li>
-                    <li>Your device will be granted 2 minutes of access</li>
-                    <li>Return to the app to continue using premium features</li>
-                </ol>
-            </div>
+            
+            <button id="closeBtn" class="btn btn-primary">Close Tab Now</button>
+            <a href="https://hackertmm-verify.netlify.app/how-to-verify" class="btn btn-secondary">How to Verify</a>
         </div>
-
+        
         <div class="footer">
-            <p>HackerTMM Verification System • Secure Access Control</p>
+            <p>HackerTMM Verification System &copy; 2023</p>
         </div>
     </div>
 
     <script>
         // Firebase configuration
         const firebaseConfig = {
-            databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com/"
+            apiKey: "AIzaSyC6QqoEXAMPLEqN6v7u8X1Y",
+            authDomain: "pin-dilog-testing.firebaseapp.com",
+            databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com",
+            projectId: "pin-dilog-testing",
+            storageBucket: "pin-dilog-testing.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abc123def456"
         };
-
+        
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-
-        // Get URL parameters
+        
+        // Get device ID from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('device');
-        const verificationId = urlParams.get('id');
-
+        
         // DOM elements
         const deviceIdElement = document.getElementById('deviceId');
-        const verificationIdElement = document.getElementById('verificationId');
-        const verificationStatusElement = document.getElementById('verificationStatus');
-        const statusMessageElement = document.getElementById('statusMessage');
-        const verifyBtn = document.getElementById('verifyBtn');
-        const btnText = document.getElementById('btnText');
-        const autoVerifyMessage = document.getElementById('autoVerifyMessage');
-
-        // Track if verification was already processed
-        let isVerified = false;
-        let checkInterval;
-        let retryCount = 0;
-        const maxRetries = 5;
-
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
-            if (deviceId && verificationId) {
-                deviceIdElement.textContent = deviceId;
-                verificationIdElement.textContent = verificationId.substring(0, 20) + '...';
-                
-                console.log("🔍 Starting auto-verification...");
-                console.log("📱 Device ID:", deviceId);
-                console.log("🔑 Verification ID:", verificationId);
-                
-                // Start auto-verification immediately
-                startAutoVerification();
-                
-            } else {
-                showError('❌ Missing required parameters. Please use the verification link from the app.');
-                showManualButton();
-            }
-        });
-
-        // Start auto-verification process
-        async function startAutoVerification() {
-            console.log("🔄 Starting automatic verification process...");
-            
-            // First, check if device is already verified
-            const alreadyVerified = await checkVerificationStatus();
-            if (alreadyVerified) {
-                console.log("✅ Device already verified");
+        const countdownElement = document.getElementById('countdown');
+        const progressBar = document.getElementById('progressBar');
+        const closeBtn = document.getElementById('closeBtn');
+        
+        // State elements
+        const loadingState = document.getElementById('loadingState');
+        const alreadyVerifiedState = document.getElementById('alreadyVerifiedState');
+        const successVerifiedState = document.getElementById('successVerifiedState');
+        const errorState = document.getElementById('errorState');
+        
+        // Set device ID in UI
+        if (deviceId) {
+            deviceIdElement.textContent = deviceId;
+        } else {
+            deviceIdElement.textContent = 'No device ID provided';
+            showErrorState();
+            return;
+        }
+        
+        // Function to show loading state
+        function showLoadingState() {
+            loadingState.classList.remove('hidden');
+            alreadyVerifiedState.classList.add('hidden');
+            successVerifiedState.classList.add('hidden');
+            errorState.classList.add('hidden');
+        }
+        
+        // Function to show already verified state
+        function showAlreadyVerifiedState() {
+            loadingState.classList.add('hidden');
+            alreadyVerifiedState.classList.remove('hidden');
+            successVerifiedState.classList.add('hidden');
+            errorState.classList.add('hidden');
+        }
+        
+        // Function to show success verified state
+        function showSuccessVerifiedState() {
+            loadingState.classList.add('hidden');
+            alreadyVerifiedState.classList.add('hidden');
+            successVerifiedState.classList.remove('hidden');
+            errorState.classList.add('hidden');
+        }
+        
+        // Function to show error state
+        function showErrorState() {
+            loadingState.classList.add('hidden');
+            alreadyVerifiedState.classList.add('hidden');
+            successVerifiedState.classList.add('hidden');
+            errorState.classList.remove('hidden');
+        }
+        
+        // Function to verify device
+        async function verifyDevice() {
+            if (!deviceId) {
+                showErrorState();
                 return;
             }
             
-            // Start the verification process
-            await verifyDevice();
-        }
-
-        // Check verification status
-        async function checkVerificationStatus() {
             try {
-                console.log("🔍 Checking verification status for device:", deviceId);
-                
+                // Check if device is already verified
                 const deviceRef = database.ref('devices/' + deviceId);
                 const snapshot = await deviceRef.once('value');
+                const deviceData = snapshot.val();
                 
-                if (snapshot.exists()) {
-                    const deviceData = snapshot.val();
-                    console.log("📄 Device data found:", deviceData);
-                    
-                    if (deviceData.verified && !isVerified) {
-                        console.log("✅ Device is already verified");
-                        showVerifiedState();
-                        return true;
-                    }
+                const currentTime = new Date().getTime();
+                const verificationDuration = 2 * 60 * 1000; // 2 minutes
+                
+                if (deviceData && deviceData.verified && 
+                    (currentTime - deviceData.verification_time) < verificationDuration) {
+                    // Device is already verified
+                    showAlreadyVerifiedState();
+                    // Close tab in 1 second
+                    startCountdown(1);
                 } else {
-                    console.log("📝 No device data found in Firebase");
-                }
-            } catch (error) {
-                console.error('❌ Error checking verification status:', error);
-            }
-            return false;
-        }
-
-        // Verify device function - AUTO TRIGGERED
-        async function verifyDevice() {
-            if (isVerified) return;
-            
-            if (!deviceId || !verificationId) {
-                showError('❌ Invalid verification request');
-                showManualButton();
-                return;
-            }
-
-            // Update status
-            statusMessageElement.textContent = '🔄 Searching for verification data...';
-            autoVerifyMessage.innerHTML = '<div class="loading"></div> Searching for verification data in Firebase...';
-
-            try {
-                console.log("🔄 Starting verification process...");
-                console.log("🔑 Checking UID:", verificationId);
-
-                // Clean the verification ID for Firebase lookup
-                const cleanVerificationId = verificationId.replaceAll(/[^a-zA-Z0-9]/g, "_");
-                console.log("🧹 Cleaned UID for Firebase:", cleanVerificationId);
-
-                let uidData = null;
-                let uidFound = false;
-
-                // Try multiple Firebase paths to find the UID
-                const pathsToCheck = [
-                    `encrypted_uids/${cleanVerificationId}`,
-                    `encrypted_uids/${verificationId}`,
-                    `backup_uids/${cleanVerificationId}`,
-                    `verification_uids/${deviceId}`
-                ];
-
-                for (const path of pathsToCheck) {
-                    console.log(`🔍 Checking path: ${path}`);
-                    const ref = database.ref(path);
-                    const snapshot = await ref.once('value');
+                    // Verify the device
+                    await deviceRef.set({
+                        verified: true,
+                        verification_time: currentTime
+                    });
                     
-                    if (snapshot.exists()) {
-                        uidData = snapshot.val();
-                        console.log(`✅ Found UID data in path: ${path}`, uidData);
-                        uidFound = true;
-                        
-                        // Handle different data structures
-                        if (path === 'verification_uids/' + deviceId) {
-                            // This path stores data by device ID, extract the UID info
-                            if (uidData.encrypted_uid === verificationId || uidData.encrypted_uid === cleanVerificationId) {
-                                console.log("✅ UID matches in device-based storage");
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-
-                if (!uidFound) {
-                    retryCount++;
-                    if (retryCount <= maxRetries) {
-                        console.log(`🔄 UID not found. Retrying... (${retryCount}/${maxRetries})`);
-                        statusMessageElement.textContent = `🔄 Searching for verification data... (Attempt ${retryCount}/${maxRetries})`;
-                        
-                        // Wait 2 seconds and retry
-                        setTimeout(verifyDevice, 2000);
-                        return;
-                    } else {
-                        showError('❌ Verification data not found in Firebase. Please generate a new link from the app.');
-                        showManualButton();
-                        return;
-                    }
-                }
-
-                // Handle case where uidData might be null
-                if (!uidData) {
-                    showError('❌ Verification data corrupted. Please generate a new link.');
-                    showManualButton();
-                    return;
+                    showSuccessVerifiedState();
+                    // Close tab in 2 seconds
+                    startCountdown(2);
                 }
                 
-                // Extract actual UID data from backup structure if needed
-                if (uidData.original_uid) {
-                    console.log("📦 Using backup UID data");
-                    uidData = uidData;
-                }
-
-                if (uidData.used) {
-                    // If already used, check if device is verified
-                    console.log("⚠️ UID already used, checking device status");
-                    const alreadyVerified = await checkVerificationStatus();
-                    if (alreadyVerified) {
-                        return;
-                    } else {
-                        showError('❌ This verification link has already been used. Please generate a new one.');
-                        showManualButton();
-                        return;
-                    }
-                }
-
-                if (uidData.device_id && uidData.device_id !== deviceId) {
-                    showError('❌ Device ID mismatch. Please use the correct verification link.');
-                    showManualButton();
-                    return;
-                }
-
-                // Check if UID is expired
-                const currentTime = Date.now();
-                if (uidData.expires_at && currentTime > uidData.expires_at) {
-                    showError('❌ Verification link has expired. Please generate a new one.');
-                    showManualButton();
-                    return;
-                }
-
-                // Update status
-                statusMessageElement.textContent = '✅ Verification data found! Updating Firebase...';
-                autoVerifyMessage.innerHTML = '<div class="loading"></div> Updating verification status in Firebase...';
-
-                // Mark UID as used IMMEDIATELY
-                console.log("📝 Marking UID as used");
-                const cleanUid = cleanVerificationId;
-                const uidRef = database.ref('encrypted_uids/' + cleanUid);
-                await uidRef.update({
-                    used: true,
-                    used_at: currentTime,
-                    status: 'completed'
-                });
-
-                // Update device verification status IMMEDIATELY
-                console.log("📱 Updating device verification status");
-                const deviceRef = database.ref('devices/' + deviceId);
-                await deviceRef.set({
-                    verified: true,
-                    verification_time: currentTime,
-                    last_verified: currentTime,
-                    verification_id: verificationId,
-                    verified_at: currentTime,
-                    status: 'active'
-                });
-
-                // Set verified flag
-                isVerified = true;
-
-                // Stop checking interval if it exists
-                if (checkInterval) {
-                    clearInterval(checkInterval);
-                }
-
-                console.log("✅ Verification completed successfully!");
-                showVerifiedState();
-
             } catch (error) {
-                console.error('❌ Verification error:', error);
-                showError('❌ Verification failed: ' + error.message + '. Please try again.');
-                showManualButton();
+                console.error('Error verifying device:', error);
+                showErrorState();
+                // Close tab in 2 seconds even with error
+                startCountdown(2);
             }
         }
-
-        // Show verified state
-        function showVerifiedState() {
-            isVerified = true;
-            statusMessageElement.textContent = '✅ Device verified successfully!';
-            statusMessageElement.className = 'status verified';
-            verificationStatusElement.textContent = 'Verified';
-            verificationStatusElement.style.color = '#155724';
+        
+        // Function to start countdown
+        function startCountdown(seconds) {
+            countdownElement.textContent = seconds;
             
-            autoVerifyMessage.style.display = 'none';
-            verifyBtn.style.display = 'none';
-            document.getElementById('successAnimation').style.display = 'block';
-            document.getElementById('timer').style.display = 'block';
-            document.getElementById('autoCloseMessage').style.display = 'block';
+            // Set progress bar transition speed based on countdown time
+            if (seconds === 1) {
+                progressBar.classList.add('progress-fast');
+            } else {
+                progressBar.classList.remove('progress-fast');
+            }
             
-            // Start countdown timer
-            startCountdown(2 * 60);
+            // Start progress animation
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+            }, 10);
             
-            // Start auto-close countdown
-            startAutoCloseCountdown();
-        }
-
-        // Start auto-close countdown
-        function startAutoCloseCountdown() {
-            let countdown = 5;
-            const countdownInterval = setInterval(() => {
-                document.getElementById('closeCountdown').textContent = countdown;
-                if (countdown <= 0) {
-                    clearInterval(countdownInterval);
-                    try {
-                        window.close();
-                    } catch (e) {
-                        console.log("⚠️ Could not close window automatically");
-                    }
-                    // Show final message
-                    document.getElementById('autoCloseMessage').innerHTML = '✅ Verification complete! You can safely close this tab and return to the app.';
-                }
+            let countdown = seconds;
+            const interval = setInterval(() => {
                 countdown--;
-            }, 1000);
-        }
-
-        // Show error state
-        function showError(message) {
-            statusMessageElement.textContent = message;
-            statusMessageElement.className = 'status error';
-            verificationStatusElement.textContent = 'Failed';
-            verificationStatusElement.style.color = '#721c24';
-            autoVerifyMessage.style.display = 'none';
-        }
-
-        // Show manual button when auto-verification fails
-        function showManualButton() {
-            verifyBtn.style.display = 'block';
-            autoVerifyMessage.innerHTML = '⚠️ Automatic verification failed. Please click the button below to try manually.';
-        }
-
-        // Countdown timer
-        function startCountdown(duration) {
-            let timer = duration;
-            const interval = setInterval(function() {
-                const minutes = Math.floor(timer / 60);
-                const seconds = timer % 60;
+                countdownElement.textContent = countdown;
                 
-                document.getElementById('countdown').textContent = 
-                    minutes.toString().padStart(2, '0') + ':' + 
-                    seconds.toString().padStart(2, '0');
-                
-                if (--timer < 0) {
+                if (countdown <= 0) {
                     clearInterval(interval);
-                    document.getElementById('countdown').textContent = '00:00';
-                    statusMessageElement.textContent = '⏰ Verification expired';
-                    statusMessageElement.className = 'status';
+                    closeTab();
                 }
             }, 1000);
         }
+        
+        // Function to close tab
+        function closeTab() {
+            try {
+                // Try to close the tab
+                window.close();
+                
+                // If we can't close the tab (due to browser restrictions), redirect to a blank page
+                setTimeout(() => {
+                    window.location.href = 'about:blank';
+                }, 500);
+            } catch (e) {
+                // If we can't close, redirect
+                window.location.href = 'about:blank';
+            }
+        }
+        
+        // Event listener for close button
+        closeBtn.addEventListener('click', closeTab);
+        
+        // Start verification process when page loads
+        window.addEventListener('load', () => {
+            // Small delay to let the page render
+            setTimeout(verifyDevice, 500);
+        });
     </script>
 </body>
 </html>
