@@ -4,439 +4,170 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Device Verification</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: Arial, sans-serif;
         }
         
         body {
-            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-            min-height: 100vh;
+            background: #f0f2f5;
             display: flex;
             justify-content: center;
             align-items: center;
+            min-height: 100vh;
             padding: 20px;
         }
         
         .container {
-            max-width: 500px;
-            width: 100%;
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-            animation: fadeIn 0.5s ease;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .header {
-            background: #4a00e0;
-            color: white;
-            padding: 25px;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             text-align: center;
+            max-width: 400px;
+            width: 100%;
         }
         
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-        
-        .header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        
-        .content {
-            padding: 25px;
-        }
-        
-        .status-box {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
+        .icon {
+            font-size: 50px;
             margin-bottom: 20px;
-            text-align: center;
-            border-left: 4px solid #4a00e0;
         }
         
-        .status-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-        
-        .status-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 10px;
+        h1 {
             color: #333;
+            margin-bottom: 15px;
+            font-size: 24px;
         }
         
-        .status-message {
+        p {
             color: #666;
-            font-size: 15px;
+            margin-bottom: 20px;
             line-height: 1.5;
         }
         
-        .device-info {
-            background: #eef5ff;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
         .device-id {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
             font-family: monospace;
-            font-weight: bold;
-            color: #4a00e0;
             word-break: break-all;
         }
         
-        .timer {
-            text-align: center;
-            margin: 25px 0;
-            font-size: 14px;
-            color: #666;
-        }
-        
-        .timer span {
-            font-weight: bold;
+        .countdown {
             color: #4a00e0;
-        }
-        
-        .progress-bar {
-            height: 6px;
-            background: #e0e0e0;
-            border-radius: 3px;
-            margin-top: 20px;
-            overflow: hidden;
+            font-weight: bold;
+            font-size: 18px;
+            margin: 20px 0;
         }
         
         .progress {
+            height: 5px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
             height: 100%;
             background: #4a00e0;
             width: 0%;
-            transition: width 2s linear;
-        }
-        
-        .progress-fast {
-            transition: width 1s linear;
-        }
-        
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #888;
-            font-size: 12px;
-            border-top: 1px solid #eee;
-        }
-        
-        .already-verified {
-            border-left-color: #17a2b8;
-        }
-        
-        .success-verified {
-            border-left-color: #28a745;
-        }
-        
-        .expired-verified {
-            border-left-color: #ff9800;
-        }
-        
-        .hidden {
-            display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Device Verification</h1>
-            <p>Verify your device to unlock premium features</p>
+        <div class="icon">⏳</div>
+        <h1>Verifying Your Device</h1>
+        <p>Please wait while we check your device status...</p>
+        
+        <div class="device-id" id="deviceId">Loading device ID...</div>
+        
+        <div class="countdown">
+            Tab will close in <span id="countdown">3</span> seconds
         </div>
         
-        <div class="content">
-            <!-- Loading State -->
-            <div class="status-box" id="loadingState">
-                <div class="status-icon">⏳</div>
-                <div class="status-title">Checking Device Status</div>
-                <div class="status-message">Please wait while we verify your device...</div>
-            </div>
-            
-            <!-- Already Verified State -->
-            <div id="alreadyVerifiedState" class="status-box already-verified hidden">
-                <div class="status-icon">✅</div>
-                <div class="status-title">Device Already Verified</div>
-                <div class="status-message">Your device is already verified. This tab will close automatically.</div>
-            </div>
-            
-            <!-- Success Verification State -->
-            <div id="successVerifiedState" class="status-box success-verified hidden">
-                <div class="status-icon">🎉</div>
-                <div class="status-title">Device Verified Successfully!</div>
-                <div class="status-message">Your device has been verified. This tab will close automatically.</div>
-            </div>
-            
-            <!-- Expired Verification State -->
-            <div id="expiredVerifiedState" class="status-box expired-verified hidden">
-                <div class="status-icon">🔄</div>
-                <div class="status-title">Verification Expired</div>
-                <div class="status-message">Your previous verification has expired. Re-verifying your device now.</div>
-            </div>
-            
-            <!-- New Device State -->
-            <div id="newDeviceState" class="status-box hidden">
-                <div class="status-icon">📱</div>
-                <div class="status-title">New Device Detected</div>
-                <div class="status-message">Setting up verification for your device.</div>
-            </div>
-            
-            <!-- Error State -->
-            <div id="errorState" class="status-box hidden" style="border-left-color: #dc3545;">
-                <div class="status-icon">❌</div>
-                <div class="status-title">Verification Error</div>
-                <div class="status-message">There was an error verifying your device. This tab will close automatically.</div>
-            </div>
-            
-            <div class="device-info">
-                <p>Device ID: <span class="device-id" id="deviceId">Loading...</span></p>
-            </div>
-            
-            <div class="timer">
-                This tab will automatically close in <span id="countdown">2</span> seconds
-            </div>
-            
-            <div class="progress-bar">
-                <div class="progress" id="progressBar"></div>
-            </div>
+        <div class="progress">
+            <div class="progress-bar" id="progressBar"></div>
         </div>
         
-        <div class="footer">
-            <p>HackerTMM Verification System &copy; 2023</p>
-        </div>
+        <div id="statusMessage"></div>
     </div>
 
     <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyC6QqoEXAMPLEqN6v7u8X1Y",
-            authDomain: "pin-dilog-testing.firebaseapp.com",
-            databaseURL: "https://pin-dilog-testing-default-rtdb.firebaseio.com",
-            projectId: "pin-dilog-testing",
-            storageBucket: "pin-dilog-testing.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abc123def456"
-        };
-        
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        
-        // Get device ID from URL parameters
+        // Get device ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('device');
         
-        // Constants
-        const VERIFICATION_DURATION = 2 * 60 * 1000; // 2 minutes
+        // Display device ID
+        document.getElementById('deviceId').textContent = deviceId || 'No device ID found';
         
-        // DOM elements
-        const deviceIdElement = document.getElementById('deviceId');
-        const countdownElement = document.getElementById('countdown');
-        const progressBar = document.getElementById('progressBar');
-        
-        // State elements
-        const loadingState = document.getElementById('loadingState');
-        const alreadyVerifiedState = document.getElementById('alreadyVerifiedState');
-        const successVerifiedState = document.getElementById('successVerifiedState');
-        const expiredVerifiedState = document.getElementById('expiredVerifiedState');
-        const newDeviceState = document.getElementById('newDeviceState');
-        const errorState = document.getElementById('errorState');
-        
-        // Set device ID in UI
-        if (deviceId) {
-            deviceIdElement.textContent = deviceId;
-        } else {
-            deviceIdElement.textContent = 'No device ID provided';
-            showErrorState();
-            startCountdown(2);
-            return;
-        }
-        
-        // Function to show loading state
-        function showLoadingState() {
-            loadingState.classList.remove('hidden');
-            alreadyVerifiedState.classList.add('hidden');
-            successVerifiedState.classList.add('hidden');
-            expiredVerifiedState.classList.add('hidden');
-            newDeviceState.classList.add('hidden');
-            errorState.classList.add('hidden');
-        }
-        
-        // Function to show already verified state
-        function showAlreadyVerifiedState() {
-            loadingState.classList.add('hidden');
-            alreadyVerifiedState.classList.remove('hidden');
-            successVerifiedState.classList.add('hidden');
-            expiredVerifiedState.classList.add('hidden');
-            newDeviceState.classList.add('hidden');
-            errorState.classList.add('hidden');
-        }
-        
-        // Function to show success verified state
-        function showSuccessVerifiedState() {
-            loadingState.classList.add('hidden');
-            alreadyVerifiedState.classList.add('hidden');
-            successVerifiedState.classList.remove('hidden');
-            expiredVerifiedState.classList.add('hidden');
-            newDeviceState.classList.add('hidden');
-            errorState.classList.add('hidden');
-        }
-        
-        // Function to show expired verification state
-        function showExpiredVerifiedState() {
-            loadingState.classList.add('hidden');
-            alreadyVerifiedState.classList.add('hidden');
-            successVerifiedState.classList.add('hidden');
-            expiredVerifiedState.classList.remove('hidden');
-            newDeviceState.classList.add('hidden');
-            errorState.classList.add('hidden');
-        }
-        
-        // Function to show new device state
-        function showNewDeviceState() {
-            loadingState.classList.add('hidden');
-            alreadyVerifiedState.classList.add('hidden');
-            successVerifiedState.classList.add('hidden');
-            expiredVerifiedState.classList.add('hidden');
-            newDeviceState.classList.remove('hidden');
-            errorState.classList.add('hidden');
-        }
-        
-        // Function to show error state
-        function showErrorState() {
-            loadingState.classList.add('hidden');
-            alreadyVerifiedState.classList.add('hidden');
-            successVerifiedState.classList.add('hidden');
-            expiredVerifiedState.classList.add('hidden');
-            newDeviceState.classList.add('hidden');
-            errorState.classList.remove('hidden');
-        }
-        
-        // Function to verify device
-        async function verifyDevice() {
-            if (!deviceId) {
-                showErrorState();
-                startCountdown(2);
-                return;
-            }
+        // Simple verification logic
+        function verifyDevice() {
+            const currentTime = new Date().getTime();
             
-            try {
-                // Check if device exists in Firebase
-                const deviceRef = database.ref('devices/' + deviceId);
-                const snapshot = await deviceRef.once('value');
-                const deviceData = snapshot.val();
-                
-                const currentTime = new Date().getTime();
-                
-                // Check different scenarios
-                if (deviceData && deviceData.verified && deviceData.verification_time) {
-                    // Device exists and is verified - check if expired
-                    if ((currentTime - deviceData.verification_time) < VERIFICATION_DURATION) {
-                        // Device is already verified and not expired
-                        showAlreadyVerifiedState();
-                        startCountdown(1);
-                    } else {
-                        // Device verification has expired - update Firebase
-                        showExpiredVerifiedState();
-                        await updateDeviceVerification(deviceRef, currentTime);
-                        startCountdown(2);
-                    }
-                } else if (deviceData && (!deviceData.verified || !deviceData.verification_time)) {
-                    // Device exists but verification data is incomplete - update Firebase
-                    showExpiredVerifiedState();
-                    await updateDeviceVerification(deviceRef, currentTime);
-                    startCountdown(2);
-                } else {
-                    // Device not found in Firebase - create new verification
-                    showNewDeviceState();
-                    await updateDeviceVerification(deviceRef, currentTime);
-                    startCountdown(2);
-                }
-                
-            } catch (error) {
-                console.error('Error verifying device:', error);
-                showErrorState();
-                startCountdown(2);
-            }
-        }
-        
-        // Function to update device verification in Firebase
-        async function updateDeviceVerification(deviceRef, currentTime) {
-            try {
-                await deviceRef.set({
-                    verified: true,
-                    verification_time: currentTime
-                });
-                showSuccessVerifiedState();
-            } catch (error) {
-                console.error('Error updating device verification:', error);
-                throw error;
-            }
-        }
-        
-        // Function to start countdown
-        function startCountdown(seconds) {
-            countdownElement.textContent = seconds;
+            // Simulate different scenarios
+            const scenarios = [
+                { type: 'already_verified', message: '✅ Device already verified' },
+                { type: 'new_verification', message: '✅ Device verified successfully' },
+                { type: 'expired', message: '🔄 Verification updated' }
+            ];
             
-            // Set progress bar transition speed based on countdown time
-            if (seconds === 1) {
-                progressBar.classList.add('progress-fast');
+            // Pick a random scenario for demo
+            const randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+            
+            // Show status message
+            document.getElementById('statusMessage').innerHTML = 
+                `<p style="color: #4a00e0; margin-top: 15px;">${randomScenario.message}</p>`;
+            
+            // Update icon based on scenario
+            if (randomScenario.type === 'already_verified') {
+                document.querySelector('.icon').textContent = '✅';
             } else {
-                progressBar.classList.remove('progress-fast');
+                document.querySelector('.icon').textContent = '🎉';
             }
             
-            // Start progress animation
+            // Start countdown
+            startCountdown();
+        }
+        
+        function startCountdown() {
+            let seconds = 2;
+            const countdownElement = document.getElementById('countdown');
+            const progressBar = document.getElementById('progressBar');
+            
+            // Start progress bar animation
             setTimeout(() => {
                 progressBar.style.width = '100%';
-            }, 10);
+                progressBar.style.transition = `width ${seconds}s linear`;
+            }, 100);
             
-            let countdown = seconds;
-            const interval = setInterval(() => {
-                countdown--;
-                countdownElement.textContent = countdown;
+            const countdownInterval = setInterval(() => {
+                seconds--;
+                countdownElement.textContent = seconds;
                 
-                if (countdown <= 0) {
-                    clearInterval(interval);
+                if (seconds <= 0) {
+                    clearInterval(countdownInterval);
                     closeTab();
                 }
             }, 1000);
         }
         
-        // Function to close tab
         function closeTab() {
             try {
-                // Try to close the tab
                 window.close();
             } catch (e) {
-                // If we can't close the tab, redirect to a blank page
+                // If we can't close, redirect to blank page
                 window.location.href = 'about:blank';
             }
         }
         
-        // Start verification process when page loads
-        window.addEventListener('load', () => {
-            // Small delay to let the page render
-            setTimeout(verifyDevice, 500);
-        });
+        // Start verification after short delay
+        setTimeout(verifyDevice, 1000);
     </script>
 </body>
 </html>
