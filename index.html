@@ -30,6 +30,12 @@
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             overflow: hidden;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .header {
@@ -60,6 +66,13 @@
             margin-bottom: 20px;
             text-align: center;
             border-left: 4px solid #4a00e0;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
         }
         
         .status-icon {
@@ -85,6 +98,7 @@
             border-radius: 8px;
             padding: 15px;
             margin-bottom: 20px;
+            text-align: center;
         }
         
         .device-id {
@@ -106,51 +120,10 @@
             color: #4a00e0;
         }
         
-        .btn {
-            display: block;
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: center;
-            text-decoration: none;
-        }
-        
-        .btn-primary {
-            background: #4a00e0;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #3a00b0;
-        }
-        
-        .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
-            margin-top: 10px;
-        }
-        
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-        
-        .footer {
-            text-align: center;
-            padding: 20px;
-            color: #888;
-            font-size: 12px;
-            border-top: 1px solid #eee;
-        }
-        
         .progress-bar {
-            height: 4px;
+            height: 6px;
             background: #e0e0e0;
-            border-radius: 2px;
+            border-radius: 3px;
             margin-top: 20px;
             overflow: hidden;
         }
@@ -166,16 +139,26 @@
             transition: width 1s linear;
         }
         
-        .hidden {
-            display: none;
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 12px;
+            border-top: 1px solid #eee;
         }
         
         .already-verified {
             border-left-color: #17a2b8;
+            animation: none;
         }
         
         .success-verified {
             border-left-color: #28a745;
+            animation: none;
+        }
+        
+        .hidden {
+            display: none;
         }
     </style>
 </head>
@@ -198,21 +181,21 @@
             <div id="alreadyVerifiedState" class="status-box already-verified hidden">
                 <div class="status-icon">✅</div>
                 <div class="status-title">Device Already Verified</div>
-                <div class="status-message">Your device is already verified. No further action is needed.</div>
+                <div class="status-message">Your device is already verified. This tab will close automatically.</div>
             </div>
             
             <!-- Success Verification State -->
             <div id="successVerifiedState" class="status-box success-verified hidden">
                 <div class="status-icon">🎉</div>
                 <div class="status-title">Device Verified Successfully!</div>
-                <div class="status-message">Your device has been verified. You can now access all premium features.</div>
+                <div class="status-message">Your device has been verified. This tab will close automatically.</div>
             </div>
             
             <!-- Error State -->
             <div id="errorState" class="status-box hidden" style="border-left-color: #dc3545;">
                 <div class="status-icon">❌</div>
                 <div class="status-title">Verification Error</div>
-                <div class="status-message">There was an error verifying your device. Please try again.</div>
+                <div class="status-message">There was an error verifying your device. This tab will close automatically.</div>
             </div>
             
             <div class="device-info">
@@ -226,9 +209,6 @@
             <div class="progress-bar">
                 <div class="progress" id="progressBar"></div>
             </div>
-            
-            <button id="closeBtn" class="btn btn-primary">Close Tab Now</button>
-            <a href="https://hackertmm-verify.netlify.app/how-to-verify" class="btn btn-secondary">How to Verify</a>
         </div>
         
         <div class="footer">
@@ -260,7 +240,6 @@
         const deviceIdElement = document.getElementById('deviceId');
         const countdownElement = document.getElementById('countdown');
         const progressBar = document.getElementById('progressBar');
-        const closeBtn = document.getElementById('closeBtn');
         
         // State elements
         const loadingState = document.getElementById('loadingState');
@@ -274,6 +253,7 @@
         } else {
             deviceIdElement.textContent = 'No device ID provided';
             showErrorState();
+            startCountdown(2);
             return;
         }
         
@@ -313,6 +293,7 @@
         async function verifyDevice() {
             if (!deviceId) {
                 showErrorState();
+                startCountdown(2);
                 return;
             }
             
@@ -384,19 +365,11 @@
             try {
                 // Try to close the tab
                 window.close();
-                
-                // If we can't close the tab (due to browser restrictions), redirect to a blank page
-                setTimeout(() => {
-                    window.location.href = 'about:blank';
-                }, 500);
             } catch (e) {
-                // If we can't close, redirect
+                // If we can't close the tab, redirect to a blank page
                 window.location.href = 'about:blank';
             }
         }
-        
-        // Event listener for close button
-        closeBtn.addEventListener('click', closeTab);
         
         // Start verification process when page loads
         window.addEventListener('load', () => {
